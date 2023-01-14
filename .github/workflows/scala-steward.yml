@@ -1,0 +1,32 @@
+# Workflow to upgrade the Scala dependencies automatically
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+name: Upgrade Scala Dependencies with Steward
+
+jobs:
+  scala-steward:
+    runs-on: ubuntu-latest
+
+    name: Launch Scala Steward
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Mill
+        uses: jodersky/setup-mill@master
+        with:
+          mill-version: "0.10.7"
+
+      - name: Launch Scala Steward
+        uses: scala-steward-org/scala-steward-action@v2
+        with:
+          github-token: ${{ secrets.SCALA_STEWARD_TOKEN }}
+          author-name: "GitHub Action"
+          author-email: "action@github.com"
