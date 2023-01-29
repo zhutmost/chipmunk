@@ -6,7 +6,7 @@ import chipmunk._
 class MyIncrement extends Module {
   val io = IO(new Bundle {
     val source = Input(UInt(2.W))
-    val sink = Output(UInt(2.W))
+    val sink   = Output(UInt(2.W))
   })
 
   io.sink := RegNext(io.source + 1.U, init = 0.U)
@@ -35,7 +35,7 @@ class MyChipTop extends RawModule {
 }
 
 object RtlEmitter extends App {
-  val prettifyArgs = Array("--emission-options", "disableMemRandomization,disableRegisterRandomization")
+  val prettifyArgs  = Array("--emission-options", "disableMemRandomization,disableRegisterRandomization")
   val targetDirArgs = Array("--target-dir", "generate")
   (new stage.ChiselStage).emitVerilog(new MyChipTop, args ++ prettifyArgs ++ targetDirArgs)
 
