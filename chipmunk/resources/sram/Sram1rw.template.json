@@ -1,0 +1,33 @@
+{
+  "family": "ram1rw",
+  "nameRule": "TS1N28HPCPHVTB$depth$X$width$M$mux$SW",
+  "maskUnit": 8,
+  "ports": [
+    {
+      "clock": {
+        "name": "CLK"
+      },
+      "enable": {
+        "name": "CEB",
+        "priority": "LOW"
+      },
+      "write": {
+        "name": "WEB",
+        "priority": "LOW"
+      },
+      "address": {
+        "name": "A"
+      },
+      "input": {
+        "name": "D"
+      },
+      "output": {
+        "name": "Q"
+      },
+      "mask": {
+        "name": "BWEB",
+        "priority": "LOW"
+      }
+    }
+  ]
+}
