@@ -5,10 +5,10 @@ import scalafmt._
 object Deps {
   val scalaVersion = "2.13.10"
 
-  val chiselVersion = "3.6.0-M2"
+  val chiselVersion = "5.0.0-RC1"
   val chisel        = ivy"edu.berkeley.cs::chisel3:$chiselVersion"
   val chiselPlugin  = ivy"edu.berkeley.cs:::chisel3-plugin:$chiselVersion"
-  val chiselTest    = ivy"edu.berkeley.cs::chiseltest:0.5.5"
+//  val chiselTest    = ivy"edu.berkeley.cs::chiseltest:0.6.0-RC2"
 }
 
 trait CommonModule extends ScalaModule with ScalafmtModule {
@@ -31,7 +31,7 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
   override def scalacPluginIvyDeps = Agg(Deps.chiselPlugin)
 
   object test extends Tests {
-    override def ivyDeps = super.ivyDeps() ++ Agg(Deps.chiselTest)
+    override def ivyDeps = super.ivyDeps()
   }
 }
 

@@ -35,9 +35,9 @@ class MyChipTop extends RawModule {
 }
 
 object RtlEmitter extends App {
-  val prettifyArgs = Array("--emission-options", "disableMemRandomization,disableRegisterRandomization")
-  val targetDirArgs = Array("--target-dir", "generate")
-  (new stage.ChiselStage).emitVerilog(new MyChipTop, args ++ prettifyArgs ++ targetDirArgs)
-
+  ChiselStage.emitSystemVerilogFile(
+    new MyChipTop,
+    args ++ Array("--target-dir=generate", "--split-verilog")
+  )
   println(">>> RTL emitted in \"generate\" directory.")
 }

@@ -9,32 +9,33 @@ import chisel3.util._
   * input reset signal is to be used for asynchronous reset, it should be synchronized by this module first.
   * {{{
   *                    _______       _______
-  *  resetChainIn ---> |D   Q|-...-> |D   Q|---> resetSynced
+  *  resetChainIn ---> |D   Q|-...-> |D   Q|---> resetChainOut
   *                    |     |       |     |
   *                    |> R  |       |> R  |
   *                    -------       -------
   *                       |             |
   *  this.reset -------------------------
   * }}}
+  *
   * @param bufferDepth
   *   The stage number of the synchronizer.
   */
 class ResetSync(val bufferDepth: Int = 2) extends Module with RequireAsyncReset {
   val io = IO(new Bundle {
-    val resetChainIn = Input(Bool())
-    val resetSynced  = Output(AsyncReset())
+    val resetChainIn  = Input(Bool())
+    val resetChainOut = Output(AsyncReset())
   })
 
   val resetValue = true.B
 
-  val resetBuffer = ShiftRegister(io.resetChainIn, bufferDepth, resetValue, true.B)
+  val resetSynced = ShiftRegister(io.resetChainIn, bufferDepth, resetValue, true.B)
 
-  io.resetSynced := resetBuffer.asAsyncReset
+  io.resetChainOut := resetSynced.asAsyncReset
 }
 
 object AsyncResetSyncDessert {
 
-  /** Synchronize the implicit reset using the implicit clock.
+  /** Synchronize the implicit reset to the implicit clock using [[ResetSync]].
     *
     * @param bufferDepth
     *   The stage number of the reset synchronizer buffer.
@@ -48,10 +49,10 @@ object AsyncResetSyncDessert {
     } else {
       uRstSync.io.resetChainIn := false.B
     }
-    uRstSync.io.resetSynced
+    uRstSync.io.resetChainOut
   }
 
-  /** Synchronize the given reset using the given clock.
+  /** Synchronize the given reset to the given clock using [[ResetSync]].
     *
     * @param clock
     *   The target clock.
