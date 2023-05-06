@@ -6,9 +6,8 @@ object Deps {
   val scalaVersion = "2.13.10"
 
   val chiselVersion = "5.0.0-RC1"
-  val chisel        = ivy"edu.berkeley.cs::chisel3:$chiselVersion"
-  val chiselPlugin  = ivy"edu.berkeley.cs:::chisel3-plugin:$chiselVersion"
-//  val chiselTest    = ivy"edu.berkeley.cs::chiseltest:0.6.0-RC2"
+  val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
+  val chiselPlugin  = ivy"org.chipsalliance:::chisel-plugin:$chiselVersion"
 }
 
 trait CommonModule extends ScalaModule with ScalafmtModule {
