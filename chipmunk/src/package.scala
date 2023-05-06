@@ -12,7 +12,7 @@ package object chipmunk {
 
     /** sets all the bits to the specified Bool input. */
     def setAllTo(b: Bool): T = {
-      c := Fill(c.getWidth, b)
+      c := Fill(c.getWidth, b).asTypeOf(c)
       c
     }
 
