@@ -13,10 +13,10 @@ class MyIncrement extends Module {
 }
 
 class MyChipTop extends RawModule {
-  val coreClock  = Wire(Clock())
-  val coreReset  = Wire(AsyncReset())
-  val coreSource = Wire(UInt(2.W))
-  val coreSink   = Wire(UInt(2.W))
+  val coreClock  = IO(Input(Clock()))
+  val coreReset  = IO(Input(AsyncReset()))
+  val coreSource = IO(Input(UInt(2.W)))
+  val coreSink   = IO(Output(UInt(2.W)))
 
   val clockSys = coreClock
   val resetSys = AsyncResetSyncDessert.withSpecificClockDomain(clockSys, coreReset)
@@ -27,15 +27,10 @@ class MyChipTop extends RawModule {
     uIncrement.io.sink <> coreSink
   }
 
-  import chipmunk.iocell.tsmc.TPHN28HPCPGV18._
-  createInputIOCell(new PDUW08DGZ_V_G, "padClock")(coreClock, pullEnable = false.B)
-  createInputIOCell(new PDUW08DGZ_V_G, "padSource")(coreSource, pullEnable = false.B)
-  createInputIOCell(new PDUW08DGZ_V_G, "padReset")(coreReset, pullEnable = false.B)
-  createOutputIOCell(new PDUW08DGZ_V_G, "padSink")(coreSink, outEnable = false.B, pullEnable = false.B)
 }
 
 object RtlEmitter extends App {
-  ChiselStage.emitSystemVerilogFile(
+  circt.stage.ChiselStage.emitSystemVerilogFile(
     new MyChipTop,
     args ++ Array("--target-dir=generate", "--split-verilog")
   )
