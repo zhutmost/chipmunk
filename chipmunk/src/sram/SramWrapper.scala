@@ -10,7 +10,7 @@ import scala.io.Source
 private[sram] object SramWrapper {
   def priorityInverse(p: SramPortPriority.Value): String = p match {
     case SramPortPriority.High => ""
-    case SramPortPriority.Low => "~ "
+    case SramPortPriority.Low  => "~ "
   }
 
   def templatePatternReplace(path: String, instance: String, sramConfig: SramConfig): String = {

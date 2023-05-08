@@ -1,5 +1,6 @@
 package chipmunk
 package sram
+
 import chisel3.util.log2Ceil
 import upickle.default._
 
@@ -12,6 +13,7 @@ object SramPortPriority extends Enumeration {
 import sram.SramPortPriority._
 
 case class SramPort(name: String, priority: SramPortPriority = High)
+
 object SramPort {
   implicit val rw: Reader[SramPort] = reader[ujson.Value].map[SramPort](json => {
     val p = json.obj.getOrElse("priority", default = ujson.Str("HIGH"))
@@ -33,6 +35,7 @@ case class SramPortGroup(
   output: SramPort = null,
   mask: SramPort = null
 )
+
 object SramPortGroup {
   implicit val rw: Reader[SramPortGroup] = macroR
 }
