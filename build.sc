@@ -5,7 +5,7 @@ import scalafmt._
 object Deps {
   val scalaVersion = "2.13.10"
 
-  val chiselVersion = "5.0.0-RC1"
+  val chiselVersion = "5.0.0-RC2"
   val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
   val chiselPlugin  = ivy"org.chipsalliance:::chisel-plugin:$chiselVersion"
 }
