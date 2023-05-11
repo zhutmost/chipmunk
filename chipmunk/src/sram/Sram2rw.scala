@@ -17,7 +17,7 @@ class Sram2rw(val config: SramConfig) extends RawModule {
   })
 
   config.mc.family match {
-    case "ram2rw" =>
+    case SramFamily.Ram2rw =>
       val uSram = Module(new Sram2rwWrapper(config))
       uSram.io.rw0_clock := io.clock0
       uSram.io.rw1_clock := io.clock1
