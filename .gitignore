@@ -10,6 +10,7 @@
 
 /*.vhd
 /*.v
+/*.sv
 /*.fir
 /*.anno.json
 /firrtl_black_box_resource_files.f
