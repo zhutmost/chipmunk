@@ -68,22 +68,17 @@ private[chipmunk] class RegNegBbox(width: Int, haveReset: Boolean, isResetAsync:
   *   Whether the register has a reset.
   * @param isResetAsync
   *   Whether the reset is asynchronous. Chisel cannot infer this, so users should specify it.
-  * @param resetValue
-  *   Default value of the register when reset is asserted.
   */
-private[chipmunk] class RegNeg[T <: Data](
-  gen: T,
-  haveReset: Boolean,
-  isResetAsync: Boolean = true,
-  resetValue: T = 0.U.asInstanceOf[T]
-) extends Module {
+private[chipmunk] class RegNeg[T <: Data](gen: T, haveReset: Boolean, isResetAsync: Boolean = true) extends Module {
   val io = IO(new Bundle {
-    val en = Input(Bool())
-    val d  = Input(gen)
-    val q  = Output(gen)
+    val init = Input(gen)
+    val en   = Input(Bool())
+    val d    = Input(gen)
+    val q    = Output(gen)
   })
 
-  val width = io.d.getWidth
+  val width      = io.d.getWidth
+  val resetValue = if (haveReset) io.init.asUInt else 0.U(width.W)
 
   val resetWire = (haveReset, isResetAsync) match {
     case (true, true)   => reset.asAsyncReset
@@ -95,7 +90,7 @@ private[chipmunk] class RegNeg[T <: Data](
   val uRegNegBbox = Module(new RegNegBbox(width, haveReset, isResetAsync))
   uRegNegBbox.io.clock := clock
   uRegNegBbox.io.reset := resetWire
-  uRegNegBbox.io.init  := resetValue.asUInt
+  uRegNegBbox.io.init  := resetValue
   uRegNegBbox.io.en    := io.en
   uRegNegBbox.io.d     := io.d.asUInt
   io.q                 := uRegNegBbox.io.q.asTypeOf(gen)
@@ -171,9 +166,10 @@ object RegNegEnable {
     requireIsHardware(init, "reg init")
     requireIsHardware(enable, "reg enable")
 
-    val reg = Module(new RegNeg(chiselTypeOf(next), haveReset = true, isResetAsync = isResetAsync, resetValue = init))
-    reg.io.en := enable
-    reg.io.d  := next
+    val reg = Module(new RegNeg(chiselTypeOf(next), haveReset = true, isResetAsync = isResetAsync))
+    reg.io.en   := enable
+    reg.io.d    := next
+    reg.io.init := init
     reg.io.q
   }
 }
