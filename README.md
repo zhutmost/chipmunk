@@ -1,83 +1,138 @@
 <img alt="A Cute Chipmunk" src="https://images.pexels.com/photos/1692984/pexels-photo-1692984.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" width="100%" height="100%">
 
-# 🐿️ CHIPMUNK: Agile Silicon Tape-out Scaffold
+# 🐿️ CHIPMUNK: Enhance CHISEL for Smooth and Comfortable Chip Design
 
-CHIPMUNK is a agile framework for in-house accelerator chip prototype design. 
+CHIPMUNK is a Scala package to extend the functionality of [CHISEL](https://chisel-lang.org). It features:
+- Extra convenient methods for CHISEL's built-in types,
+- Several syntactic sugar to sweeten your CHISEL experience,
+- A set of commonly used components and interfaces.
 
-## Dependencies
+**WARNING**: The code contained in this repo are provided AS IS, and I cannot make any guarantees for availability and correctness. Most of them have only been silicon-verified in academic research (and some even not). You should carefully review every line of code before using it in production.
 
-Click the triangle (►) on the left to view the installation guide.
+Please open an issue if you have any questions.
 
-<details>
-<summary> JDK </summary>
+## Installation
 
-Before starting, please make sure you have a JDK >= 8 installed. You can install a JDK through the package manager that comes with your OS, or just download a prebuilt binaries such as [Temurin](https://adoptium.net) or [Oracle OpenJDK](https://jdk.java.net/19).
+CHIPMUNK is an extension of Chisel, so it needs to be used together with CHISEL.
 
-To install a JDK LTS:
+[Mill](https://mill-build.com) is required to build and publish CHIPMUNK.
 
-```sh
-# macOS with Homebrew
-brew install openjdk@17
-# Ubuntu
-apt install default-jdk
-```
-</details>
-
-<details>
-<summary> Mill build tool </summary>
-
-Mill is a powerful and easy-to-use build tool by [Haoyi Li](https://github.com/lihaoyi).
-
-To install Mill:
-```sh
-# macOS with Homebrew
-brew install mill
-```
-
-To install mill on other platforms, please visit [its documentation](https://com-lihaoyi.github.io/mill/mill/Intro_to_Mill.html).
-</details>
-<details>
-<summary> Verilator (optional) </summary>
-
-If you want to run the Scala-written testbench, you need to install a simulation tool, such as Verilator.
-
-To install Verilator:
-```sh
-# macOS with Homebrew
-brew install verilator
-# Ubuntu
-apt install verilator
-```
-
-To veiw the `.vcd` files generated in simulation, a waveform view tool is also required. You can use GTKWave or other commercial tools.
-</details>
-<details>
-<summary> Intellij IDEA (optional) </summary>
-
-Intellij IDEA is an IDE widely used in the Scala community. We strongly recommend you to use it, if you need an IDE.
-
-Intellij IDEA is developed by JetBrains, and you can download it from [here](https://www.jetbrains.com/idea)(the free Community Edition is good enough). You also need to install its Scala plugin (when you run Intellij IDEA the first time, it will ask you about it).
-
-Sometimes you may need to specify some paths like JDK in the IDE preferences.
-</details>
-
-## Usage
-
-Clone this repository to your local.
-```shell 
-git clone git@github.com:zhutmost/chipmunk.git
-cd chipmunk
-rm -rf .git
-```
-
-Open a terminal in the root of your cloned repository and build. The first time it runs, the process may take some minutes to download dependencies.
 ```shell
-mill mylib.runMain mylib.RtlEmitter
+mill chipmunk.publishLocal
 ```
 
-To open this project in an IDE (such as IDEA), please export the BSP configuration first.
-```sh
-mill mill.bsp.BSP/install
+Then add CHIPMUNK to your build file.
+```scala
+// Mill
+def ivyDeps = Agg(..., ivy"com.zhutmost::chipmunk:0.1-SNAPSHOT")
+// SBT
+libraryDependencies ++= Seq(..., "com.zhutmost" %% "chipmunk" % "0.1-SNAPSHOT")
 ```
 
-You can freely add your Chisel code in `mylib` package, and have fun!
+Import it as well as `chisel3` in your Scala RTL code.
+```scala
+import chisel3._
+import chisel3.util._
+import chipmunk._
+```
+
+## Documentation
+
+CHIPMUNK documents are provided on [my blog](https://zhutmost.com/tags/Chipmunk/).
+
+### Extra convenient Methods for Chisel types
+[View detailed document]()
+
+Code example:
+```scala
+val myUInt = Wire(UInt(3.W)).dontTouch // equivalent to `DontTouch(...)`, but more convenient
+when(...) {
+  myUInt.setAllTo(someBits.lsb) // set all bits to true or false
+} otherwise {
+  myUInt.clearAll()
+}
+val emptyStream = Decoupled(new EmptyBundle) // Bundle without elements
+```
+
+### Define Bundle Direction with Master/Slave
+[View detailed document](https://zhutmost.com/Engineering/chipmunk-master-slave)
+
+Code example:
+```scala
+class AxiIO extends Bundle with IsMasterSlave {
+  val aw = Master(new AxiWriteAddrChannelIO)
+  val ar = Master(new AxiReadAddrChannelIO)
+  val r = Slave(new AxiReadDataChannelIO)
+  val w = Master(new AxiWriteDataChannelIO)
+  val b = Slave(new AxiWriteRespChannelIO)
+  def isMaster = true // indicate this bundle is a Master
+}
+
+class AxiSlave extends Module {
+  val io = IO(new Bundle {
+    val axi = Slave(new AxiIO) // automatically flip the signal directions
+  })
+  // ...
+}
+```
+
+### Registers triggered on the falling clock edge
+[View detailed document](https://zhutmost.com/Engineering/chipmunk-regneg)
+
+Code example:
+```scala
+withClockAndReset(clock, reset) {
+  val regNeg1 = RegNegNext(nextVal)
+  val regNeg2 = RegNegEnable(nextVal, initVal, enable)
+}
+```
+
+### Asynchronous Reset Synchronous Dessert
+[View detailed document]()
+
+Code example:
+```scala
+val reset2 = AsyncResetSyncDessert.withImplicitClockDomain()
+val reset1 = AsyncResetSyncDessert.withSpecificClockDomain(clockSys, coreReset, resetChainIn = reset1)
+```
+
+### Clock Domain Crossing Blocks
+[View detailed document]()
+
+Code example:
+```scala
+TODO
+```
+
+### Stream/Flow: Decouple Dataflow with Handshake
+[View detailed document]()
+
+Code example:
+```scala
+TODO
+```
+
+### Structural SRAM Macro Wrapper
+[View detailed document]()
+
+Code example:
+```scala
+TODO
+```
+
+<!-- ### Miscellaneous things I don't know where to put them
+[View detailed document]()
+
+Code example:
+```scala
+val emptyStream = Stream(new EmptyBundle) // Bundle without elements
+``` -->
+
+(Not all above document pages are ready yet.)
+
+I am sorry they are written in Chinese (Machine translation driven by AI is good enough now :D).
+
+## Acknowledgement
+
+CHIPMUNK is standing on the shoulder of giants.
+Thanks for CHISEL, SpinalHDL and many other open-sourced projects.
