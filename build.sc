@@ -46,9 +46,7 @@ object chipmunk extends CommonModule with PublishModule {
     url = "https://github.com/zhutmost/chipmunk",
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("zhutmost", "chipmunk"),
-    developers = Seq(
-      Developer("zhutmost", "Haozhe Zhu", "https://github.com/zhutmost")
-    )
+    developers = Seq(Developer("zhutmost", "Haozhe Zhu", "https://github.com/zhutmost"))
   )
 }
 
