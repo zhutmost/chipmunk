@@ -4,7 +4,7 @@ import scalafmt._
 import publish._
 
 object Deps {
-  val scalaVersion = "2.13.10"
+  val scalaVersion = "2.13.11"
 
   val chiselVersion = "5.0.0"
   val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
@@ -46,9 +46,7 @@ object chipmunk extends CommonModule with PublishModule {
     url = "https://github.com/zhutmost/chipmunk",
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("zhutmost", "chipmunk"),
-    developers = Seq(
-      Developer("zhutmost", "Haozhe Zhu", "https://github.com/zhutmost")
-    )
+    developers = Seq(Developer("zhutmost", "Haozhe Zhu", "https://github.com/zhutmost"))
   )
 }
 
