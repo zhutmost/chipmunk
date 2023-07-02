@@ -6,7 +6,7 @@ import chipmunk._
 class MyIncrement extends Module {
   val io = IO(new Bundle {
     val source = Input(UInt(2.W))
-    val sink = Output(UInt(2.W))
+    val sink   = Output(UInt(2.W))
   })
 
   io.sink := RegNext(io.source + 1.U, init = 0.U)
@@ -30,9 +30,7 @@ class MyChipTop extends RawModule {
 }
 
 object RtlEmitter extends App {
-  circt.stage.ChiselStage.emitSystemVerilogFile(
-    new MyChipTop,
-    args ++ Array("--target-dir=generate", "--split-verilog")
-  )
+  circt.stage.ChiselStage
+    .emitSystemVerilogFile(new MyChipTop, args ++ Array("--target-dir=generate", "--split-verilog"))
   println(">>> RTL emitted in \"generate\" directory.")
 }
