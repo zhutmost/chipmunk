@@ -35,24 +35,22 @@ private[chipmunk] class RegNegBbox(width: Int, haveReset: Boolean, isResetAsync:
        |  reg [WIDTH-1:0] r;
        |  assign q = r;
        |
-       |  generate
-       |    if (RESET_EXIST == "true" && RESET_ASYNC == "true") begin: gRegNeg_AsyncReset
-       |      always @(posedge clock or posedge reset) begin
-       |        if (reset) r <= init;
-       |        else if (en) r <= d;
-       |      end
-       |    end else if (RESET_EXIST == "true" && RESET_ASYNC == "false") begin: gRegNeg_syncReset
-       |      always @(posedge clock) begin
-       |        if (reset) r <= init;
-       |        else if (en) r <= d;
-       |      end
-       |    end else begin: gRegNeg_noReset
-       |      // Signal reset is unconnected.
-       |      always @(posedge clock) begin
-       |        if (en) r <= d;
-       |      end
+       |  if (RESET_EXIST == "true" && RESET_ASYNC == "true") begin
+       |    always @(negedge clock or posedge reset) begin
+       |      if (reset)   r <= init;
+       |      else if (en) r <= d;
        |    end
-       |  endgenerate
+       |  end else if (RESET_EXIST == "true" && RESET_ASYNC == "false") begin
+       |    always @(negedge clock) begin
+       |      if (reset)   r <= init;
+       |      else if (en) r <= d;
+       |    end
+       |  end else begin
+       |    // Signal reset/init is unconnected.
+       |    always @(negedge clock) begin
+       |      if (en) r <= d;
+       |    end
+       |  end
        |
        |endmodule : $desiredName
        |""".stripMargin
@@ -65,7 +63,7 @@ private[chipmunk] class RegNegBbox(width: Int, haveReset: Boolean, isResetAsync:
   * @param gen
   *   The Chisel type of the register.
   * @param haveReset
-  *   Whether the register has a reset.
+  *   Whether the register has a reset. If true, the register will have a active-high reset.
   * @param isResetAsync
   *   Whether the reset is asynchronous. Chisel cannot infer this, so users should specify it.
   */
@@ -111,13 +109,13 @@ object RegNegNext {
     RegNegEnable(next, true.B)
   }
 
-  /** Returns a falling-edge triggered register with reset initialization. The reset can be synchronous or asynchronous,
-    * according to its type.
+  /** Returns a falling-edge triggered register with active-high reset initialization. The reset can be synchronous or
+    * asynchronous, according to its type.
     *
     * It has a similar function to [[chisel3.RegNext]] but it is triggered on the falling clock edge.
     *
     * @param isResetAsync
-    *   Whether the reset is asynchronous. Chisel cannot infer this from code, so users should specify it.
+    *   Whether the reset is asynchronous. Chisel cannot infer this from the Scala context, so users should specify it.
     * @example
     *   {{{
     * val regNeg = RegNegNext(nextVal)
@@ -149,13 +147,13 @@ object RegNegEnable {
     reg.io.q
   }
 
-  /** Returns a falling-edge triggered register with update enable gate and reset initialization. The reset can be
-    * synchronous or asynchronous, according to its type.
+  /** Returns a falling-edge triggered register with update enable gate and active-high reset initialization. The reset
+    * can be synchronous or asynchronous, according to its type.
     *
     * It has a similar function to [[chisel3.util.RegEnable]] but it is triggered on the falling clock edge.
     *
     * @param isResetAsync
-    *   Whether the reset is asynchronous. Chisel cannot infer this from code, so users should specify it.
+    *   Whether the reset is asynchronous. Chisel cannot infer this from the Scala context, so users should specify it.
     * @example
     *   {{{
     * val regNeg = RegNegEnable(nextVal, initVal, ena)
