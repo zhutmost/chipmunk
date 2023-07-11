@@ -1,0 +1,59 @@
+{
+  "family": "ram2rw",
+  "nameRule": "TSDN28HPCPA$depth$X$width$M$mux$SW",
+  "maskUnit": 8,
+  "ports": [
+    {
+      "clock": {
+        "name": "CLKA"
+      },
+      "enable": {
+        "name": "CEBA",
+        "priority": "LOW"
+      },
+      "write": {
+        "name": "WEBA",
+        "priority": "LOW"
+      },
+      "address": {
+        "name": "AA"
+      },
+      "input": {
+        "name": "DA"
+      },
+      "output": {
+        "name": "QA"
+      },
+      "mask": {
+        "name": "BWEBA",
+        "priority": "LOW"
+      }
+    },
+    {
+      "clock": {
+        "name": "CLKB"
+      },
+      "enable": {
+        "name": "CEBB",
+        "priority": "LOW"
+      },
+      "write": {
+        "name": "WEBB",
+        "priority": "LOW"
+      },
+      "address": {
+        "name": "AB"
+      },
+      "input": {
+        "name": "DB"
+      },
+      "output": {
+        "name": "QB"
+      },
+      "mask": {
+        "name": "BWEBB",
+        "priority": "LOW"
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "family": "ram1r1w",
+  "nameRule": "TS2N28HPCPHVTB$depth$X$width$M$mux$SW",
+  "maskUnit": 8,
+  "ports": [
+    {
+      "clock": {
+        "name": "CLKA"
+      },
+      "enable": {
+        "name": "CEBA",
+        "priority": "LOW"
+      },
+      "address": {
+        "name": "AA"
+      },
+      "input": {
+        "name": "DA"
+      },
+      "mask": {
+        "name": "BWEBA",
+        "priority": "LOW"
+      }
+    },
+    {
+      "clock": {
+        "name": "CLKB"
+      },
+      "enable": {
+        "name": "CEBB",
+        "priority": "LOW"
+      },
+      "address": {
+        "name": "AB"
+      },
+      "output": {
+        "name": "QB"
+      }
+    }
+  ]
+}
