@@ -3,10 +3,10 @@ import scalalib._
 import scalafmt._
 import publish._
 
-object Deps {
+object Dependencies {
   val scalaVersion = "2.13.11"
 
-  val chiselVersion = "5.0.0"
+  val chiselVersion = "6.0.0-M2"
   val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
   val chiselPlugin  = ivy"org.chipsalliance:::chisel-plugin:$chiselVersion"
 
@@ -14,7 +14,7 @@ object Deps {
 }
 
 trait CommonModule extends ScalaModule with ScalafmtModule {
-  override def scalaVersion = Deps.scalaVersion
+  override def scalaVersion = Dependencies.scalaVersion
 
   override def scalacOptions = T {
     super.scalacOptions() ++
@@ -29,11 +29,11 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
       )
   }
 
-  override def ivyDeps             = Agg(Deps.chisel)
-  override def scalacPluginIvyDeps = Agg(Deps.chiselPlugin)
+  override def ivyDeps             = Agg(Dependencies.chisel)
+  override def scalacPluginIvyDeps = Agg(Dependencies.chiselPlugin)
 
   object test extends Tests {
-    override def ivyDeps = super.ivyDeps() ++ Agg(Deps.scalaTest)
+    override def ivyDeps = super.ivyDeps() ++ Agg(Dependencies.scalaTest)
   }
 }
 
