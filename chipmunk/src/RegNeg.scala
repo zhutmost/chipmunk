@@ -1,60 +1,23 @@
 package chipmunk
 
 import chisel3._
-import chisel3.experimental.requireIsHardware
+import chisel3.experimental.{requireIsChiselType, requireIsHardware}
 import chisel3.util._
 
 private[chipmunk] class RegNegBbox(width: Int, haveReset: Boolean, isResetAsync: Boolean = true)
-    extends BlackBox(Map("WIDTH" -> width, "RESET_EXIST" -> haveReset.toString, "RESET_ASYNC" -> isResetAsync.toString))
-    with HasBlackBoxInline {
+    extends BlackBox(Map("WIDTH" -> width, "RESET_ASYNC" -> isResetAsync.toString))
+    with HasBlackBoxResource {
   val io = IO(new Bundle {
     val clock = Input(Clock())
-    val reset = Input(Reset())
+    val reset = if (haveReset) Some(Input(Reset())) else None
+    val init  = if (haveReset) Some(Input(UInt(width.W))) else None
     val en    = Input(Bool())
-    val init  = Input(UInt(width.W))
     val d     = Input(UInt(width.W))
     val q     = Output(UInt(width.W))
   })
-  override val desiredName = "Chipmunk_RegNegBbox"
 
-  setInline(
-    f"$desiredName.sv",
-    s"""
-       |module $desiredName #(
-       |  parameter WIDTH = 1,
-       |  parameter RESET_EXIST = "true",
-       |  parameter RESET_ASYNC = "true"
-       |)(
-       |  input  wire clock,
-       |  input  wire reset,
-       |  input  wire en,
-       |  input  wire [WIDTH-1:0] init,
-       |  input  wire [WIDTH-1:0] d,
-       |  output wire [WIDTH-1:0] q
-       |);
-       |  reg [WIDTH-1:0] r;
-       |  assign q = r;
-       |
-       |  if (RESET_EXIST == "true" && RESET_ASYNC == "true") begin
-       |    always @(negedge clock or posedge reset) begin
-       |      if (reset)   r <= init;
-       |      else if (en) r <= d;
-       |    end
-       |  end else if (RESET_EXIST == "true" && RESET_ASYNC == "false") begin
-       |    always @(negedge clock) begin
-       |      if (reset)   r <= init;
-       |      else if (en) r <= d;
-       |    end
-       |  end else begin
-       |    // Signal reset/init is unconnected.
-       |    always @(negedge clock) begin
-       |      if (en) r <= d;
-       |    end
-       |  end
-       |
-       |endmodule : $desiredName
-       |""".stripMargin
-  )
+  override def desiredName = "Chipmunk_" + (if (haveReset) "RegNegInit" else "RegNeg")
+  addResource(f"/regneg/$desiredName.sv")
 }
 
 /** Register triggered on falling clock edge. This Module is just a wrapper of [[RegNegBbox]], so that users don't need
@@ -74,24 +37,16 @@ private[chipmunk] class RegNeg[T <: Data](gen: T, haveReset: Boolean, isResetAsy
     val d    = Input(gen)
     val q    = Output(gen)
   })
-
-  val width      = io.d.getWidth
-  val resetValue = if (haveReset) io.init.asUInt else 0.U(width.W)
-
-  val resetWire = (haveReset, isResetAsync) match {
-    case (true, true)   => reset.asAsyncReset
-    case (true, false)  => reset.asBool
-    case (false, true)  => false.B.asAsyncReset
-    case (false, false) => false.B
-  }
+  val width = io.d.getWidth
 
   val uRegNegBbox = Module(new RegNegBbox(width, haveReset, isResetAsync))
   uRegNegBbox.io.clock := clock
-  uRegNegBbox.io.reset := resetWire
-  uRegNegBbox.io.init  := resetValue
   uRegNegBbox.io.en    := io.en
   uRegNegBbox.io.d     := io.d.asUInt
   io.q                 := uRegNegBbox.io.q.asTypeOf(gen)
+
+  uRegNegBbox.io.reset.foreach(_ := reset)
+  uRegNegBbox.io.init.foreach(_ := io.init.asUInt)
 }
 
 object RegNegNext {
@@ -138,8 +93,8 @@ object RegNegEnable {
     *   }}}
     */
   def apply[T <: Data](next: T, enable: Bool): T = {
-    requireIsHardware(next, "reg next")
-    requireIsHardware(enable, "reg enable")
+    requireIsHardware(next, "RegNegEnable.next")
+    requireIsHardware(enable, "RegNegEnable.enable")
 
     val reg = Module(new RegNeg(chiselTypeOf(next), haveReset = false))
     reg.io.en := enable
@@ -160,9 +115,9 @@ object RegNegEnable {
     *   }}}
     */
   def apply[T <: Data](next: T, init: T, enable: Bool, isResetAsync: Boolean = true): T = {
-    requireIsHardware(next, "reg next")
-    requireIsHardware(init, "reg init")
-    requireIsHardware(enable, "reg enable")
+    requireIsHardware(next, "RegNegEnable.next")
+    requireIsHardware(init, "RegNegEnable.init")
+    requireIsHardware(enable, "RegNegEnable.enable")
 
     val reg = Module(new RegNeg(chiselTypeOf(next), haveReset = true, isResetAsync = isResetAsync))
     reg.io.en   := enable
