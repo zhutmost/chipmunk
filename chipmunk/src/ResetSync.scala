@@ -3,7 +3,7 @@ package chipmunk
 import chisel3._
 import chisel3.util._
 
-/** Asynchronous reset synchronizer.
+/** Asynchronous reset synchronizer. Note that only high-active reset is supported.
   *
   * It can synchronize the dessert of the implicit reset signal with the implicit clock. Generally, if an externally
   * input reset signal is to be used for asynchronous reset, it should be synchronized by this module first.
@@ -35,7 +35,8 @@ class ResetSync(val bufferDepth: Int = 2) extends Module with RequireAsyncReset 
 
 object AsyncResetSyncDessert {
 
-  /** Synchronize the implicit reset to the implicit clock using [[ResetSync]].
+  /** Synchronize the implicit reset to the implicit clock using [[ResetSync]]. Note that only high-active reset is
+    * supported.
     *
     * @param bufferDepth
     *   The stage number of the reset synchronizer buffer.
@@ -52,7 +53,7 @@ object AsyncResetSyncDessert {
     uRstSync.io.resetChainOut
   }
 
-  /** Synchronize the given reset to the given clock using [[ResetSync]].
+  /** Synchronize the given reset to the given clock using [[ResetSync]]. Note that only high-active reset is supported.
     *
     * @param clock
     *   The target clock.
