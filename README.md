@@ -41,7 +41,7 @@ import chipmunk._
 CHIPMUNK documents are provided on [my blog](https://zhutmost.com/tags/Chipmunk/).
 
 ### Extra convenient Methods for Chisel types
-[View detailed document]()
+[View detailed document](https://zhutmost.com/Engineering/chipmunk-bits-misc)
 
 Code example:
 ```scala
@@ -105,7 +105,7 @@ TODO
 ```
 
 ### Stream/Flow: Decouple Dataflow with Handshake
-[View detailed document]()
+[View detailed document](https://zhutmost.com/Engineering/chipmunk-stream)
 
 Code example:
 ```scala
@@ -135,4 +135,4 @@ I am sorry they are written in Chinese (Machine translation driven by AI is good
 ## Acknowledgement
 
 CHIPMUNK is standing on the shoulder of giants.
-Thanks for CHISEL, SpinalHDL and many other open-sourced projects.
+Thanks for [CHISEL](https://chisel-lang.org), [SpinalHDL](https://github.com/SpinalHDL/SpinalHDL) and many other open-sourced projects.
