@@ -10,7 +10,7 @@ object Dependencies {
   val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
   val chiselPlugin  = ivy"org.chipsalliance:::chisel-plugin:$chiselVersion"
 
-  val scalaTest = ivy"org.scalatest::scalatest:3.2.16"
+  val scalaTest = ivy"org.scalatest::scalatest:3.2.17"
 }
 
 trait CommonModule extends ScalaModule with ScalafmtModule {
