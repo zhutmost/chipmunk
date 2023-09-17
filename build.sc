@@ -4,7 +4,7 @@ import scalafmt._
 import publish._
 
 object Dependencies {
-  val scalaVersion = "2.13.11"
+  val scalaVersion = "2.13.12"
 
   val chiselVersion = "6.0.0-M3"
   val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
