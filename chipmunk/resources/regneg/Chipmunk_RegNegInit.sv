@@ -14,16 +14,18 @@ module Chipmunk_RegNegInit #(
   logic [WIDTH-1:0] r;
   assign q = r;
 
-  if (RESET_ASYNC == "true") begin: g_reset_async
-    always_ff @(negedge clock, posedge reset) begin
-      if (reset)   r <= init;
-      else if (en) r <= d;
+  generate
+    if (RESET_ASYNC == "true") begin: g_reset_async
+      always_ff @(negedge clock, posedge reset) begin
+        if (reset)   r <= init;
+        else if (en) r <= d;
+      end
+    end else if (RESET_ASYNC == "false") begin: g_reset_sync
+      always_ff @(negedge clock) begin
+        if (reset)   r <= init;
+        else if (en) r <= d;
+      end
     end
-  end else if (RESET_ASYNC == "false") begin: g_reset_sync
-    always_ff @(negedge clock) begin
-      if (reset)   r <= init;
-      else if (en) r <= d;
-    end
-  end
+  endgenerate
 
 endmodule: Chipmunk_RegNegInit
