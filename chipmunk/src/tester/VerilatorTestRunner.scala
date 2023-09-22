@@ -5,28 +5,19 @@ import chisel3._
 import chisel3.simulator._
 import svsim._
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-
 trait VerilatorTestRunner extends TestRunner {
   private val verilatorBackend = verilator.Backend.initializeFromProcessEnvironment()
-  private val timeStampFormat  = new SimpleDateFormat("yyyyMMddHHmmss")
 
-  def compileTester[T <: RawModule](
-    module: => T,
-    additionalVerilogResources: Seq[String] = Seq()
-  ): VerilatorSimulationContext[T] = {
-    val workspacePath = Seq(
-      "test_run",
-      // This is taken from the legacy `TesterDriver` class. It isn't ideal and we hope to improve this eventually.
-      timeStampFormat.format(Calendar.getInstance().getTime),
-      getClass.getSimpleName
-    ).mkString("/")
-    val workspace = new Workspace(workspacePath)
+  def _compile[T <: RawModule](
+    config: TestRunnerConfig
+  )(module: => T, additionalVerilogResources: Seq[String] = Seq()): VerilatorSimulationContext[T] = {
+    val workspace = new Workspace(config.workspacePath)
     workspace.reset()
     val elaboratedModule = workspace.elaborateGeneratedModule({ () => module })
     additionalVerilogResources.foreach(workspace.addPrimarySourceFromResource(getClass, _))
     workspace.generateAdditionalSources()
+
+    val traceStyle = if (config.withWaveform) Some(verilator.Backend.CompilationSettings.TraceStyle.Vcd()) else None
     val simulation = workspace.compile(verilatorBackend)(
       "verilator", {
         import CommonCompilationSettings._
@@ -41,7 +32,11 @@ trait VerilatorTestRunner extends TestRunner {
         )
       },
       verilator.Backend
-        .CompilationSettings(disabledWarnings = Seq("WIDTH", "STMTDLY"), disableFatalExitOnWarnings = true),
+        .CompilationSettings(
+          traceStyle = traceStyle,
+          disabledWarnings = Seq("WIDTH", "STMTDLY"),
+          disableFatalExitOnWarnings = true
+        ),
       customSimulationWorkingDirectory = None,
       verbose = false
     )

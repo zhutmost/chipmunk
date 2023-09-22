@@ -4,7 +4,7 @@ import chipmunk.tester._
 import chisel3._
 
 class TestRunnerSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
-  val compiled = compileTester(new Module {
+  val compiled = TestRunnerConfig(withWaveform = true).compileTester(new Module {
     val io = IO(new Bundle {
       val a = Input(UInt(3.W))
       val b = Output(UInt(3.W))

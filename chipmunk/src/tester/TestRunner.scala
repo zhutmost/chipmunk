@@ -21,5 +21,26 @@ class SimulationContext[T <: RawModule](
 }
 
 trait TestRunner {
-  def compileTester[T <: RawModule](module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T]
+  case class TestRunnerConfig(
+    workspacePath: String = s"test_run/${TestRunner.this.getClass.getSimpleName}",
+    withWaveform: Boolean = false
+  )
+
+  def _compile[T <: RawModule](
+    config: TestRunnerConfig
+  )(module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T]
+
+  def compileTester[T <: RawModule](
+    module: => T,
+    additionalVerilogResources: Seq[String] = Seq()
+  ): SimulationContext[T] =
+    _compile(TestRunnerConfig())(module, additionalVerilogResources)
+
+  implicit class TestRunnerConfigWrapper(config: TestRunnerConfig) {
+    def compileTester[T <: RawModule](
+      module: => T,
+      additionalVerilogResources: Seq[String] = Seq()
+    ): SimulationContext[T] =
+      _compile(config)(module, additionalVerilogResources)
+  }
 }
