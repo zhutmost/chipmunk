@@ -1,6 +1,6 @@
 package chipmunk
 
-import svsim.Simulation.{Port, Value}
+import svsim.Simulation._
 
 package object tester {
   implicit class AddMethodsToPort(p: Port) {

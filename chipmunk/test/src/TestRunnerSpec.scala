@@ -4,14 +4,15 @@ import chipmunk.tester._
 import chisel3._
 
 class TestRunnerSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+  val compiled = compileTester(new Module {
+    val io = IO(new Bundle {
+      val a = Input(UInt(3.W))
+      val b = Output(UInt(3.W))
+    })
+    io.b := io.a
+  })
   "TestRunner" should "compile DUT and run simulation" in {
-    val success = runTester(new Module {
-      val io = IO(new Bundle {
-        val a = Input(UInt(3.W))
-        val b = Output(UInt(3.W))
-      })
-      io.b := io.a
-    }) { module =>
+    val success = compiled.runSim { module =>
       val dut   = module.wrapped
       val clock = module.port(dut.clock)
       val reset = module.port(dut.reset)
@@ -22,7 +23,7 @@ class TestRunnerSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       val b = module.port(dut.io.b)
       a #= 3
       assert(b.get().asBigInt == 3)
-      println(b.get().bitCount == 3)
+      assert(b.get().bitCount == 3)
       clock.tick(timestepsPerPhase = 1, maxCycles = 10, inPhaseValue = 1, outOfPhaseValue = 0, sentinel = None)
     }
     assert(success)
