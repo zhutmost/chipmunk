@@ -1,46 +1,70 @@
 package chipmunk
 package tester
 
-import chisel3._
 import chisel3.simulator._
+import chisel3._
 import svsim._
 
-class SimulationContext[T <: RawModule](
-  val simulation: Simulation,
-  val workspace: Workspace,
-  val elaboratedModule: ElaboratedModule[T]
+/** Configuration for [[TestRunner]]. You can initialize and run a simulation with this class.
+  *
+  * @example
+  *   {{{
+  * TestRunnerConfig(withWaveform = true).simulate(new Dut) { dut =>
+  *   dut.clock.poke(true)
+  *   // ... Add more testbench code here
+  * }
+  *   }}}
+  * @param withWaveform
+  *   Whether to dump simulation waveform or not. The default format is VCD for Verilator.
+  * @param ephemeral
+  *   Whether to delete the workspace directory after simulation is done.
+  * @param testRunningPath
+  *   The path to the directory where the simulation workspace is created.
+  */
+case class TestRunnerConfig(
+  withWaveform: Boolean = false,
+  ephemeral: Boolean = false,
+  testRunningPath: String = "test_run"
 ) {
-  def runSim[U](testbench: SimulatedModule[T] => U): Boolean = {
-    try {
-      simulation.runElaboratedModule(elaboratedModule) { testbench(_) }
-      true
-    } catch {
-      case svsim.Simulation.UnexpectedEndOfMessages => false
-    }
+  def simulate[T <: RawModule](module: => T)(body: T => Unit): Unit = {
+    val testRunner = new TestRunner(this)
+    testRunner.simulate(module)(body)
   }
 }
 
-trait TestRunner {
-  case class TestRunnerConfig(
-    workspacePath: String = s"test_run/${TestRunner.this.getClass.getSimpleName}",
-    withWaveform: Boolean = false
-  )
+class TestRunner(config: TestRunnerConfig) extends SingleBackendSimulator[verilator.Backend] {
+  val workspacePath: String =
+    Seq(config.testRunningPath, getClass.getName.stripSuffix("$"), ProcessHandle.current().pid().toString).mkString("/")
 
-  def _compile[T <: RawModule](
-    config: TestRunnerConfig
-  )(module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T]
+  val backend = verilator.Backend.initializeFromProcessEnvironment()
+  val commonCompilationSettings: CommonCompilationSettings = {
+    import CommonCompilationSettings._
+    CommonCompilationSettings(
+      availableParallelism = AvailableParallelism.UpTo(Runtime.getRuntime.availableProcessors()),
+      optimizationStyle = OptimizationStyle.OptimizeForCompilationSpeed
+    )
+  }
+  val backendSpecificCompilationSettings: backend.CompilationSettings = {
+    import verilator.Backend.CompilationSettings._
+    verilator.Backend.CompilationSettings(traceStyle = if (config.withWaveform) Some(TraceStyle.Vcd()) else None)
+  }
+  val tag: String = "default"
 
-  def compileTester[T <: RawModule](
-    module: => T,
-    additionalVerilogResources: Seq[String] = Seq()
-  ): SimulationContext[T] =
-    _compile(TestRunnerConfig())(module, additionalVerilogResources)
+  def simulate[T <: RawModule](module: => T)(body: T => Unit): Unit = {
+    synchronized {
+      super
+        .simulate(module)({ module =>
+          module.controller.setTraceEnabled(config.withWaveform)
+          body(module.wrapped)
+        })
+        .result
+    }
+  }
 
-  implicit class TestRunnerConfigWrapper(config: TestRunnerConfig) {
-    def compileTester[T <: RawModule](
-      module: => T,
-      additionalVerilogResources: Seq[String] = Seq()
-    ): SimulationContext[T] =
-      _compile(config)(module, additionalVerilogResources)
+  if (config.ephemeral) {
+    // Try to clean up temporary workspace if possible when JVM exits
+    sys.addShutdownHook {
+      Runtime.getRuntime.exec(Array("rm", "-rf", workspacePath)).waitFor()
+    }
   }
 }

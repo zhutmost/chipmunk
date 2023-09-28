@@ -3,29 +3,23 @@ package chipmunk.test
 import chipmunk.tester._
 import chisel3._
 
-class TestRunnerSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
-  val compiled = TestRunnerConfig(withWaveform = true).compileTester(new Module {
-    val io = IO(new Bundle {
-      val a = Input(UInt(3.W))
-      val b = Output(UInt(3.W))
-    })
-    io.b := io.a
-  })
+class TestRunnerSpec extends ChipmunkFlatSpec {
   "TestRunner" should "compile DUT and run simulation" in {
-    val success = compiled.runSim { module =>
-      val dut   = module.wrapped
-      val clock = module.port(dut.clock)
-      val reset = module.port(dut.reset)
-      reset.set(1)
-      clock.tick(timestepsPerPhase = 1, maxCycles = 10, inPhaseValue = 1, outOfPhaseValue = 0, sentinel = None)
-      reset.set(0)
-      val a = module.port(dut.io.a)
-      val b = module.port(dut.io.b)
-      a #= 3
-      assert(b.get().asBigInt == 3)
-      assert(b.get().bitCount == 3)
-      clock.tick(timestepsPerPhase = 1, maxCycles = 10, inPhaseValue = 1, outOfPhaseValue = 0, sentinel = None)
+    TestRunnerConfig(withWaveform = true).simulate(new Module {
+      val io = IO(new Bundle {
+        val a = Input(SInt(3.W))
+        val b = Output(SInt(3.W))
+        val c = Output(UInt(3.W))
+      })
+      io.b := io.a
+      io.c := io.a.asUInt
+    }) { dut =>
+      import TestRunnerUtils._
+      dut.clock.step()
+      dut.io.a #= -1.S(3.W)
+      dut.clock.step()
+      dut.io.b expect -1
+      dut.io.c expect 7
     }
-    assert(success)
   }
 }
