@@ -8,7 +8,7 @@ import svsim._
   * Before using it, you should ensure that Verilator is installed and available in the environment.
   */
 trait VerilatorTestRunner extends TestRunner[verilator.Backend] {
-  def _createSimulation(config: TestRunnerConfig, workingDirTag: String): Simulation = {
+  def _createSimulation(config: TestRunnerConfig, workspace: Workspace, workingDirTag: String): Simulation = {
     val backend = verilator.Backend.initializeFromProcessEnvironment()
     val commonCompilationSettings: CommonCompilationSettings = {
       import CommonCompilationSettings._

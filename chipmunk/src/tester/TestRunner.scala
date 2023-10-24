@@ -1,14 +1,17 @@
 package chipmunk
 package tester
 
-import chisel3.simulator._
 import chisel3._
+import chisel3.simulator._
 import svsim._
+
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /** Provides method to run simulation with Scala-written testbench.
   *
   * The simulation-related files will be stored in a [[Workspace]], whose default path is
-  * `/test-run/$className/$processId`.
+  * `/test-run/$className/$processId-$timestamp`.
   *
   * This trait is backend-agnostic. End users should mix in a backend-specific sub-trait, such as
   * [[VerilatorTestRunner]]. To run simulation with a new backend, the method [[_createSimulation]] should be
@@ -23,12 +26,12 @@ trait TestRunner[B <: Backend] {
     *
     * @param withWaveform
     *   Whether to enable waveform generation.
+    * @param testRunDirPath
+    *   The path of the test run directory ("./test_run" by default).
     */
-  case class TestRunnerConfig(withWaveform: Boolean = false)
+  case class TestRunnerConfig(withWaveform: Boolean = false, testRunDirPath: String = "test_run")
 
-  private val workspacePath: String =
-    Seq("test_run", getClass.getSimpleName.stripSuffix("$"), ProcessHandle.current().pid().toString).mkString("/")
-  val workspace = new Workspace(workspacePath)
+  private val className = getClass.getSimpleName.stripSuffix("$")
 
   /** Create a [[Simulation]] object with a specific backend according to the given config.
     *
@@ -36,18 +39,19 @@ trait TestRunner[B <: Backend] {
     *
     * @param config
     *   The configuration for the simulation.
+    * @param workspace
+    *   The workspace directory for the simulation.
     * @param workingDirTag
     *   The name suffix of the working directory during a certain simulation.
     */
-  protected def _createSimulation(config: TestRunnerConfig, workingDirTag: String): Simulation
+  protected def _createSimulation(config: TestRunnerConfig, workspace: Workspace, workingDirTag: String): Simulation
 
   implicit class TestRunnerConfigWrapper(config: TestRunnerConfig) {
 
     /** Elaborate the given module, and prepare the other necessary files in the workspace. It will return a
       * [[SimulationContext]] object, and you can call [[SimulationContext.runSim]] to run the simulation.
       *
-      * This method will reset the [[workspace]] directory, and then generate other simulation-related files in the
-      * workspace.
+      * This method will initialize a workspace directory, and then generate other simulation-related files in the it.
       *
       * @param module
       *   The module to be elaborated.
@@ -55,12 +59,17 @@ trait TestRunner[B <: Backend] {
       *   Other Verilog resources required by the simulation.
       */
     def compile[T <: RawModule](module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T] = {
+      val jvmPid: String        = ProcessHandle.current().pid().toString
+      val timestamp: String     = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(LocalDateTime.now())
+      val workspacePath: String = Seq(config.testRunDirPath, className, s"$jvmPid-$timestamp").mkString("/")
+
+      val workspace = new Workspace(workspacePath)
       workspace.reset()
       val elaboratedModule = workspace.elaborateGeneratedModule({ () => module })
       additionalVerilogResources.foreach(workspace.addPrimarySourceFromResource(getClass, _))
       workspace.generateAdditionalSources()
 
-      val context = new SimulationContext(config, elaboratedModule)
+      val context = new SimulationContext(config, workspace, elaboratedModule)
       context
     }
   }
@@ -74,13 +83,17 @@ trait TestRunner[B <: Backend] {
   def compile[T <: RawModule](module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T] =
     TestRunnerConfig().compile(module, additionalVerilogResources)
 
-  class SimulationContext[T <: RawModule](val config: TestRunnerConfig, val elaboratedModule: ElaboratedModule[T]) {
-    private var testCnt: Int = 0
-    private def getTestCnt(inc: Boolean = true): Int = {
+  class SimulationContext[T <: RawModule](
+    val config: TestRunnerConfig,
+    val workspace: Workspace,
+    val elaboratedModule: ElaboratedModule[T]
+  ) {
+    private var runSimCnt: Int = 0
+    private def getRunSimCnt(inc: Boolean = true): Int = {
       if (inc) {
-        testCnt += 1
+        runSimCnt += 1
       }
-      testCnt
+      runSimCnt
     }
 
     /** Run the simulation with the given Scala-written testbench.
@@ -102,8 +115,8 @@ trait TestRunner[B <: Backend] {
       *   }}}
       */
     def runSim(testbench: T => Unit): Unit = {
-      val workingDirTag: String  = s"runSim-${getTestCnt()}"
-      val simulation: Simulation = _createSimulation(config, workingDirTag)
+      val workingDirTag: String  = s"runSim-${getRunSimCnt()}"
+      val simulation: Simulation = _createSimulation(config, workspace, workingDirTag)
       synchronized {
         simulation.runElaboratedModule(elaboratedModule) { module =>
           module.controller.setTraceEnabled(config.withWaveform)
