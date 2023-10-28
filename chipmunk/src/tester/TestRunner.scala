@@ -22,6 +22,8 @@ import java.time.format.DateTimeFormatter
   */
 trait TestRunner[B <: Backend] {
 
+  private val className: String = getClass.getSimpleName.stripSuffix("$")
+
   /** The configuration for simulation.
     *
     * @param withWaveform
@@ -29,24 +31,7 @@ trait TestRunner[B <: Backend] {
     * @param testRunDirPath
     *   The path of the test run directory ("./test_run" by default).
     */
-  case class TestRunnerConfig(withWaveform: Boolean = false, testRunDirPath: String = "test_run")
-
-  private val className = getClass.getSimpleName.stripSuffix("$")
-
-  /** Create a [[Simulation]] object with a specific backend according to the given config.
-    *
-    * This method should be implemented by a backend-specific sub-trait.
-    *
-    * @param config
-    *   The configuration for the simulation.
-    * @param workspace
-    *   The workspace directory for the simulation.
-    * @param workingDirTag
-    *   The name suffix of the working directory during a certain simulation.
-    */
-  protected def _createSimulation(config: TestRunnerConfig, workspace: Workspace, workingDirTag: String): Simulation
-
-  implicit class TestRunnerConfigWrapper(config: TestRunnerConfig) {
+  case class TestRunnerConfig(withWaveform: Boolean = false, testRunDirPath: String = "test_run") {
 
     /** Elaborate the given module, and prepare the other necessary files in the workspace. It will return a
       * [[SimulationContext]] object, and you can call [[SimulationContext.runSim]] to run the simulation.
@@ -61,27 +46,40 @@ trait TestRunner[B <: Backend] {
     def compile[T <: RawModule](module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T] = {
       val jvmPid: String        = ProcessHandle.current().pid().toString
       val timestamp: String     = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(LocalDateTime.now())
-      val workspacePath: String = Seq(config.testRunDirPath, className, s"$jvmPid-$timestamp").mkString("/")
+      val workspacePath: String = Seq(testRunDirPath, className, s"$jvmPid-$timestamp").mkString("/")
 
       val workspace = new Workspace(workspacePath)
       workspace.reset()
-      val elaboratedModule = workspace.elaborateGeneratedModule({ () => module })
+      val elaboratedModule = workspace.elaborateGeneratedModule(() => module)
       additionalVerilogResources.foreach(workspace.addPrimarySourceFromResource(getClass, _))
       workspace.generateAdditionalSources()
 
-      val context = new SimulationContext(config, workspace, elaboratedModule)
+      val context = new SimulationContext(this, workspace, elaboratedModule)
       context
     }
   }
 
-  /** Create a [[SimulationContext]] object with the default configuration. It is equivalent to calling
-    * `TestRunnerConfig().compile(...)`.
+  /** Create a [[SimulationContext]] object with the default [[TestRunnerConfig]] configuration. It is equivalent to
+    * calling `TestRunnerConfig().compile(...)`.
     *
     * @see
-    *   [[TestRunnerConfigWrapper.compile]]
+    *   [[TestRunnerConfig.compile]]
     */
   def compile[T <: RawModule](module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T] =
     TestRunnerConfig().compile(module, additionalVerilogResources)
+
+  /** Create a [[Simulation]] object with a specific backend according to the given config.
+    *
+    * This method should be implemented by a backend-specific sub-trait.
+    *
+    * @param config
+    *   The configuration for the simulation.
+    * @param workspace
+    *   The workspace directory for the simulation.
+    * @param workingDirTag
+    *   The name suffix of the working directory during a certain simulation.
+    */
+  protected def _createSimulation(config: TestRunnerConfig, workspace: Workspace, workingDirTag: String): Simulation
 
   class SimulationContext[T <: RawModule](
     val config: TestRunnerConfig,

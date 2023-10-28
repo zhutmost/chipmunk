@@ -23,7 +23,7 @@ class TestRunnerSimpleSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
     }
     val workingDirName  = f"${compiled.workspace.workingDirectoryPrefix}-runSim-1"
     val vcdWaveformPath = Paths.get(compiled.workspace.absolutePath, workingDirName, "trace.vcd")
-    vcdWaveformPath.toFile.exists() should be(true)
+    vcdWaveformPath.toFile.exists() shouldBe true
   }
 
   it should "compile another DUT and run another testbench" in {
@@ -45,7 +45,7 @@ class TestRunnerSimpleSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
 }
 
 class TestRunnerCompileFailSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
-  "TestRunner" should "throw Exception when compilation fails" in {
+  "TestRunner" should "throw Exception when DUT compilation fails" in {
     a[ChiselException] shouldBe thrownBy {
       compile(new Module {
         val io = IO(new Bundle {
