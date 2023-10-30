@@ -29,15 +29,13 @@ class MyChipTop extends RawModule {
 }
 
 object RtlEmitter extends App {
-  val targetModule = new MyChipTop
-
-  val targetDir = "generate"
+  val targetDir = "generate/hw"
 
   val chiselArgs = Array(f"--target-dir=$targetDir", "--split-verilog")
   val firtoolOpts =
-    Array("--disable-all-randomization", "-repl-seq-mem", f"-repl-seq-mem-file=${targetModule.name}.mem.conf")
+    Array("--disable-all-randomization", "-repl-seq-mem", f"-repl-seq-mem-file=seq-mem.conf")
 
   ChiselStage
-    .emitSystemVerilogFile(targetModule, chiselArgs, firtoolOpts)
+    .emitSystemVerilogFile(new MyChipTop, chiselArgs, firtoolOpts)
   println(f">>> RTL emitted in \"$targetDir\" directory.")
 }

@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatter
 /** Provides method to run simulation with Scala-written testbench.
   *
   * The simulation-related files will be stored in a [[Workspace]], whose default path is
-  * `/test-run/$className/$processId-$timestamp`.
+  * `generate/test/$className/$processId-$timestamp`.
   *
   * This trait is backend-agnostic. End users should mix in a backend-specific sub-trait, such as
   * [[VerilatorTestRunner]]. To run simulation with a new backend, the method [[_createSimulation]] should be
@@ -29,9 +29,9 @@ trait TestRunner[B <: Backend] {
     * @param withWaveform
     *   Whether to enable waveform generation.
     * @param testRunDirPath
-    *   The path of the test run directory ("./test_run" by default).
+    *   The path of the test running directory ("./generate/test" by default).
     */
-  case class TestRunnerConfig(withWaveform: Boolean = false, testRunDirPath: String = "test_run") {
+  case class TestRunnerConfig(withWaveform: Boolean = false, testRunDirPath: String = "generate/test") {
 
     /** Elaborate the given module, and prepare the other necessary files in the workspace. It will return a
       * [[SimulationContext]] object, and you can call [[SimulationContext.runSim]] to run the simulation.
