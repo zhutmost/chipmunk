@@ -2,7 +2,6 @@ package chipmunk
 package tester
 
 import chisel3._
-import chisel3.simulator._
 import svsim._
 
 import java.time.LocalDateTime
@@ -116,9 +115,13 @@ trait TestRunner[B <: Backend] {
       val workingDirTag: String  = s"runSim-${getRunSimCnt()}"
       val simulation: Simulation = _createSimulation(config, workspace, workingDirTag)
       synchronized {
-        simulation.runElaboratedModule(elaboratedModule) { module =>
-          module.controller.setTraceEnabled(config.withWaveform)
-          testbench(module.wrapped)
+        simulation.run { controller =>
+          val module = new SimulatedModule(elaboratedModule, controller)
+          AnySimulatedModule.withValue(module) {
+            module.controller.setTraceEnabled(config.withWaveform)
+            testbench(module.wrapped)
+            module.completeSimulation()
+          }
         }
       }
     }
