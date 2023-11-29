@@ -4,24 +4,36 @@ import chisel3._
 import chisel3.experimental.{requireIsChiselType, requireIsHardware}
 import chisel3.util._
 
-private[chipmunk] class RegNegBbox(width: Int, haveReset: Boolean, isResetAsync: Boolean = true)
-    extends BlackBox(Map("WIDTH" -> width, "RESET_ASYNC" -> isResetAsync.toString))
-    with HasBlackBoxResource {
+private[chipmunk] class RegNegBbox(width: Int) extends BlackBox(Map("WIDTH" -> width)) with HasBlackBoxResource {
   val io = IO(new Bundle {
     val clock = Input(Clock())
-    val reset = if (haveReset) Some(Input(Reset())) else None
-    val init  = if (haveReset) Some(Input(UInt(width.W))) else None
     val en    = Input(Bool())
     val d     = Input(UInt(width.W))
     val q     = Output(UInt(width.W))
   })
 
-  override def desiredName = "Chipmunk_" + (if (haveReset) "RegNegInit" else "RegNeg")
+  override def desiredName = "Chipmunk_RegNeg"
   addResource(f"/regneg/$desiredName.sv")
 }
 
-/** Register triggered on falling clock edge. This Module is just a wrapper of [[RegNegBbox]], so that users don't need
-  * to assign clock and reset explicitly.
+private[chipmunk] class RegNegInitBbox(width: Int, isResetAsync: Boolean = true)
+    extends BlackBox(Map("WIDTH" -> width, "RESET_ASYNC" -> isResetAsync.toString))
+    with HasBlackBoxResource {
+  val io = IO(new Bundle {
+    val clock = Input(Clock())
+    val reset = Input(Reset())
+    val init  = Input(UInt(width.W))
+    val en    = Input(Bool())
+    val d     = Input(UInt(width.W))
+    val q     = Output(UInt(width.W))
+  })
+
+  override def desiredName = "Chipmunk_RegNegInit"
+  addResource(f"/regneg/$desiredName.sv")
+}
+
+/** Register triggered on falling clock edge. This Module is just a wrapper of [[RegNegBbox]] and [[RegNegInitBbox]], so
+  * that users don't need to assign clock and reset explicitly.
   *
   * @param gen
   *   The Chisel type of the register.
@@ -32,21 +44,30 @@ private[chipmunk] class RegNegBbox(width: Int, haveReset: Boolean, isResetAsync:
   */
 private[chipmunk] class RegNeg[T <: Data](gen: T, haveReset: Boolean, isResetAsync: Boolean = true) extends Module {
   val io = IO(new Bundle {
-    val init = Input(gen)
+    val init = if (haveReset) Some(Input(gen)) else None
     val en   = Input(Bool())
     val d    = Input(gen)
     val q    = Output(gen)
   })
   val width = io.d.getWidth
 
-  val uRegNegBbox = Module(new RegNegBbox(width, haveReset, isResetAsync))
-  uRegNegBbox.io.clock := clock
-  uRegNegBbox.io.en    := io.en
-  uRegNegBbox.io.d     := io.d.asUInt
-  io.q                 := uRegNegBbox.io.q.asTypeOf(gen)
+  val q = if (haveReset) {
+    val uRegNegBbox = Module(new RegNegInitBbox(width, isResetAsync))
+    uRegNegBbox.io.clock := clock
+    uRegNegBbox.io.reset := reset
+    uRegNegBbox.io.en    := io.en
+    uRegNegBbox.io.d     := io.d.asUInt
+    uRegNegBbox.io.init  := io.init.get.asUInt
+    uRegNegBbox.io.q.asTypeOf(gen)
+  } else {
+    val uRegNegBbox = Module(new RegNegBbox(width))
+    uRegNegBbox.io.clock := clock
+    uRegNegBbox.io.en    := io.en
+    uRegNegBbox.io.d     := io.d.asUInt
+    uRegNegBbox.io.q.asTypeOf(gen)
+  }
 
-  uRegNegBbox.io.reset.foreach(_ := reset)
-  uRegNegBbox.io.init.foreach(_ := io.init.asUInt)
+  io.q := q
 }
 
 object RegNegNext {
@@ -120,9 +141,9 @@ object RegNegEnable {
     requireIsHardware(enable, "RegNegEnable.enable")
 
     val reg = Module(new RegNeg(chiselTypeOf(next), haveReset = true, isResetAsync = isResetAsync))
-    reg.io.en   := enable
-    reg.io.d    := next
-    reg.io.init := init
+    reg.io.en       := enable
+    reg.io.d        := next
+    reg.io.init.get := init
     reg.io.q
   }
 }
