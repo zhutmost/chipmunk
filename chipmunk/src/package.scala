@@ -9,16 +9,16 @@ package object chipmunk {
   implicit class AddMethodsToBits[T <: Bits](c: T) {
 
     /** returns the most significant n bits. */
-    def msb(n: Int = 1): UInt = c.head(n)
+    def msBits(n: Int = 1): UInt = c.head(n)
 
     /** returns the least significant n bits. */
-    def lsb(n: Int = 1): UInt = c(n - 1, 0)
+    def lsBits(n: Int = 1): UInt = c(n - 1, 0)
 
     /** returns the most significant bit as Bool. */
-    def msb: Bool = c.msb().asBool
+    def msBit: Bool = c.head(1).asBool
 
     /** returns the least significant bit as Bool. */
-    def lsb: Bool = c.lsb().asBool
+    def lsBit: Bool = c(0).asBool
 
     /** sets all the bits to the specified Bool literal. */
     def setAllTo(b: Bool): T = {

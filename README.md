@@ -47,7 +47,7 @@ Code example:
 ```scala
 val myUInt = Wire(UInt(3.W)).dontTouch // equivalent to `DontTouch(...)`, but more convenient
 when(...) {
-  myUInt.setAllTo(someBits.lsb) // set all bits to true or false
+  myUInt.setAllTo(someBits.lsBit) // set all bits to true or false
 } otherwise {
   myUInt.clearAll()
 }
