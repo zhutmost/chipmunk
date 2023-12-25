@@ -16,7 +16,7 @@ import chisel3._
   *   }}}
   */
 trait IsMasterSlave {
-  this: Bundle {} =>
+  this: Record {} =>
 
   /** Override this method to set the bundle as Master or Slave. */
   def isMaster: Boolean
@@ -27,7 +27,7 @@ trait IsMasterSlave {
 
 /** Set a bundle as a master interface. */
 object Master {
-  def apply[T <: Bundle with IsMasterSlave](bundle: => T): T = {
+  def apply[T <: Record with IsMasterSlave](bundle: => T): T = {
     require(bundle._wrapFlag.isEmpty, "Bundles cannot be nested-ly wrapped with Master/Slave(_).")
     val b: T = if (bundle.isMaster) bundle else Flipped(bundle)
     b._wrapFlag = Some(true)
@@ -37,7 +37,7 @@ object Master {
 
 /** Set a bundle as a slave interface. */
 object Slave {
-  def apply[T <: Bundle with IsMasterSlave](bundle: => T): T = {
+  def apply[T <: Record with IsMasterSlave](bundle: => T): T = {
     require(bundle._wrapFlag.isEmpty, "Bundles cannot be nested-ly wrapped with Master/Slave(_).")
     val b: T = if (!bundle.isMaster) bundle else Flipped(bundle)
     b._wrapFlag = Some(false)

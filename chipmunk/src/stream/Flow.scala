@@ -63,8 +63,9 @@ class FlowIO[T <: Data](gen: T) extends Valid[T](gen) with IsMasterSlave {
     ret
   }
 
-  /** Replace this FlowIO's payload (bits) with something else. If you want to cast the payload to another type, use
-    * [[payloadCast]]. *
+  /** Replace this FlowIO's payload (bits) with something else.
+    *
+    * If you want to cast the payload to another type, consider using [[payloadCast]].
     *
     * @param p
     *   The new payload.
@@ -79,8 +80,9 @@ class FlowIO[T <: Data](gen: T) extends Valid[T](gen) with IsMasterSlave {
     payloadMap(_ => p)
   }
 
-  /** Cast this FlowIO's payload (bits) to another type. If you want to replace the payload with other hardware signals,
-    * use [[payloadReplace]].
+  /** Cast this FlowIO's payload (bits) to another type.
+    *
+    * If you want to replace the payload with other hardware signals, use [[payloadReplace]].
     *
     * @param gen
     *   Target chisel type.
