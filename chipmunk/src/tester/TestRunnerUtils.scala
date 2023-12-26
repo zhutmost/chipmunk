@@ -92,7 +92,7 @@ trait TestRunnerUtils {
   }
 
   case class FailedExpectationException[T](observed: T, expected: T)
-      extends Exception(s"Failed Expectation: Expected '$expected', but observed $observed.")
+      extends Exception(s"Failed Expectation: Expected '$expected', but observed '$observed'.")
 
   trait TestableDataPeeker[T <: Data] {
     val data: T
