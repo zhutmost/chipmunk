@@ -1,12 +1,10 @@
 package chipmunk
 package regbank
 
-import stream._
+import component.AcornWideBusIO
 
 import chisel3._
 import chisel3.util._
-
-import scala.math.ceil
 
 /** Configuration of of a register element in [[RegBank]].
   *
@@ -55,49 +53,6 @@ object RegElementConfig {
   }
 }
 
-/** Memory-mapped access interface of [[RegBank]].
-  *
-  * @note
-  *   The mask bits (`wr.req.bits.mask`) are high-active. Only the data bits corresponding to mask bits of 1 will be
-  *   written to the register fields. That is to say, if all bits in `wr.req.bits.mask` is 0, no data will be written
-  *   during a write request.
-  *
-  * @param addrWidth
-  *   Bit width of write/read address. Default is 32.
-  * @param dataWidth
-  *   Bit width of write/read data. Default is 32.
-  * @param maskUnit
-  *   The mask granularity for writing. In general, it should be a power of 2. Keep it 0 to generate no mask signal. For
-  *   example, if `maskUnit` is 8, each mask bit corresponds to one byte of the data bits.
-  */
-class RegBankAccessIO(val addrWidth: Int = 32, val dataWidth: Int = 32, val maskUnit: Int = 0)
-    extends Bundle
-    with IsMasterSlave {
-  val hasMask        = maskUnit > 0
-  val maskWidth: Int = if (hasMask) ceil(dataWidth.toDouble / maskUnit).toInt else 0
-  val wr = new Bundle {
-    val req = Master(Flow(new Bundle {
-      val addr = UInt(addrWidth.W)
-      val data = UInt(dataWidth.W)
-      val mask = if (hasMask) Some(UInt(maskWidth.W)) else None
-    }))
-    val resp = Slave(Flow(new Bundle {
-      val status = Bool()
-    }))
-  }
-  val rd = new Bundle {
-    val req = Master(Flow(new Bundle {
-      val addr = UInt(addrWidth.W)
-    }))
-    val resp = Slave(Flow(new Bundle {
-      val data   = UInt(dataWidth.W)
-      val status = Bool()
-    }))
-  }
-
-  def isMaster = true
-}
-
 /** Backdoor access interface of [[RegBank]].
   *
   * Use "ElementName_FieldName" to access a register field. For example, "STATUS_VERSION" means the field "VERSION" in
@@ -137,7 +92,7 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
 /** Memory-mapped register bank.
   *
   * A register bank is a collection of register elements, which can be accessed through a memory-mapped interface
-  * [[RegBankAccessIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read
+  * [[AcornWideBusIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read
   * (and even updated) by a backdoor interface [[RegBankFieldIO]].
   *
   * @param addrWidth
@@ -160,11 +115,11 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
   * uRegBank.io.access <> ... // memory-mapped access
   *
   * // Read the value of field STATUS.VERSION
-  * val version = uRegBank.io.fields("STATUS.VERSION").value
+  * val version = uRegBank.io.fields("STATUS_VERSION").value
   *
   * // Update the value of field STATUS.ERROR from backdoor
-  * uRegBank.io.fields("STATUS.ERROR").backdoorUpdate.get.valid := true.B
-  * uRegBank.io.fields("STATUS.ERROR").backdoorUpdate.get.bits  := 1.U
+  * uRegBank.io.fields("STATUS_ERROR").backdoorUpdate.get.valid := true.B
+  * uRegBank.io.fields("STATUS_ERROR").backdoorUpdate.get.bits  := 1.U
   *   }}}
   */
 class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegElementConfig]) extends Module {
@@ -178,47 +133,60 @@ class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegEl
   val regsConfig = regs
 
   val io = IO(new Bundle {
-    val access = Slave(new RegBankAccessIO(addrWidth, dataWidth, maskUnit))
+    val access = Slave(new AcornWideBusIO(addrWidth = addrWidth, dataWidth = dataWidth, maskUnit = maskUnit))
     val fields = new RegBankFieldIO(regs)
   })
 
-  io.access.wr.resp.valid := RegNext(io.access.wr.req.fire, false.B)
-  io.access.rd.resp.valid := RegNext(io.access.rd.req.fire, false.B)
+  val wrRespPending: Bool = RegInit(false.B)
+  val rdRespPending: Bool = RegInit(false.B)
 
-  val elemWrAddrHits = regs.map(io.access.wr.req.bits.addr === _.addr.U)
-  val elemRdAddrHits = regs.map(io.access.rd.req.bits.addr === _.addr.U)
+  io.access.wr.cmd.ready  := io.access.wr.resp.fire || !wrRespPending
+  io.access.rd.cmd.ready  := io.access.rd.resp.fire || !rdRespPending
+  io.access.wr.resp.valid := wrRespPending
+  io.access.rd.resp.valid := rdRespPending
 
-  val wrAddrNoMatch = !elemWrAddrHits.reduce(_ || _)
-  val rdAddrNoMatch = !elemRdAddrHits.reduce(_ || _)
+  val elemWrAddrHits = regs.map(io.access.wr.cmd.bits.addr === _.addr.U)
+  val elemRdAddrHits = regs.map(io.access.rd.cmd.bits.addr === _.addr.U)
+  val wrAddrNoMatch  = !elemWrAddrHits.reduce(_ || _)
+  val rdAddrNoMatch  = !elemRdAddrHits.reduce(_ || _)
 
   val wrRespStatus = RegInit(false.B)
-  when(io.access.wr.req.fire) {
-    wrRespStatus := wrAddrNoMatch
-  }.otherwise {
-    wrRespStatus := false.B
+  val rdRespStatus = RegInit(false.B)
+
+  when(io.access.wr.cmd.fire) {
+    wrRespPending := true.B
+    wrRespStatus  := wrAddrNoMatch
+  }.elsewhen(io.access.wr.resp.fire) {
+    wrRespPending := false.B
+    wrRespStatus  := false.B
   }
 
-  val rdRespStatus = RegInit(false.B)
-  when(io.access.rd.req.fire) {
-    rdRespStatus := rdAddrNoMatch
-  }.otherwise {
-    rdRespStatus := false.B
+  when(io.access.rd.cmd.fire) {
+    rdRespPending := true.B
+    rdRespStatus  := rdAddrNoMatch
+  }.elsewhen(io.access.rd.resp.fire) {
+    rdRespPending := false.B
+    rdRespStatus  := false.B
   }
 
   val elemRdDatas = Wire(Vec(regs.length, UInt(dataWidth.W)))
-  val rdDataNext  = MuxLookup(io.access.rd.req.bits.addr, 0.U)(regs.map(_.addr.U) zip elemRdDatas)
+  val rdDataNext  = MuxLookup(io.access.rd.cmd.bits.addr, 0.U)(regs.map(_.addr.U) zip elemRdDatas)
 
-  val rdRespData = RegNext(rdDataNext, 0.U)
-  io.access.wr.resp.bits.status := wrRespStatus
-  io.access.rd.resp.bits.status := rdRespStatus
-  io.access.rd.resp.bits.data   := rdRespData
+  val rdRespData = RegInit(0.U(io.access.dataWidth.W))
+  when(io.access.rd.cmd.fire) {
+    rdRespData := rdDataNext
+  }
+
+  io.access.wr.resp.bits.status := wrRespStatus.asUInt
+  io.access.rd.resp.bits.status := rdRespStatus.asUInt
+  io.access.rd.resp.bits.rdata  := rdRespData
 
   for (idxElem <- regs.indices) {
     val elemConfig   = regs(idxElem)
-    val elemWrEnable = io.access.wr.req.fire && elemWrAddrHits(idxElem)
-    val elemRdEnable = io.access.rd.req.fire && elemRdAddrHits(idxElem)
+    val elemWrEnable = io.access.wr.cmd.fire && elemWrAddrHits(idxElem)
+    val elemRdEnable = io.access.rd.cmd.fire && elemRdAddrHits(idxElem)
     val elemWrBitMask = if (io.access.hasMask) {
-      val mask: UInt = io.access.wr.req.bits.mask.get
+      val mask: UInt = io.access.wr.cmd.bits.wmask.get
       Cat(mask.asBools.reverse.flatMap(b => Seq.fill(io.access.maskUnit)(b)))
     } else {
       Fill(dataWidth, 1.B)
@@ -230,7 +198,7 @@ class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegEl
         val uField = Module(new RegField(fieldConfig))
         uField.io.frontdoor.wrEnable  := elemWrEnable
         uField.io.frontdoor.rdEnable  := elemRdEnable
-        uField.io.frontdoor.wrData    := io.access.wr.req.bits.data(fieldConfig.endOffset, fieldConfig.baseOffset)
+        uField.io.frontdoor.wrData    := io.access.wr.cmd.bits.wdata(fieldConfig.endOffset, fieldConfig.baseOffset)
         uField.io.frontdoor.wrBitMask := elemWrBitMask(fieldConfig.endOffset, fieldConfig.baseOffset)
 
         io.fields(s"${elemConfig.name}_${fieldConfig.name}") <> uField.io.backdoor
