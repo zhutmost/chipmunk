@@ -73,6 +73,9 @@ case class RegFieldConfig(
 private[regbank] class RegFieldBackdoorIO(fieldConfig: RegFieldConfig) extends Bundle with IsMasterSlave {
   val value = Output(UInt(fieldConfig.bitCount.W))
 
+  val isBeingWritten = Output(Bool())
+  val isBeingRead    = Output(Bool())
+
   val backdoorUpdate =
     if (fieldConfig.backdoorUpdate)
       Some(Slave(Flow(UInt(fieldConfig.bitCount.W))))
@@ -123,6 +126,10 @@ private[regbank] class RegField(val config: RegFieldConfig) extends Module {
 
   r := PriorityMux(dataNextChoicesPriority.flatMap(dataNextChoices(_).toList))
 
-  io.backdoor.value   := r
+  io.backdoor.value := r
+
+  io.backdoor.isBeingRead    := io.frontdoor.rdEnable && !config.accessType.cannotRead.B
+  io.backdoor.isBeingWritten := wrEnableValid
+
   io.frontdoor.rdData := (if (config.accessType.cannotRead) 0.U else r.asUInt)
 }
