@@ -323,23 +323,6 @@ class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave
     ret
   }
 
-//  /** Fork this StreamIO into `num` downstream StreamIOs. For each input transaction, every downstream stream handshakes
-//    * exactly once. This StreamIO only fires when all downstream StreamIOs have fired, but the downstream StreamIOs do
-//    * not have to handshake simultaneously.
-//    *
-//    * @param num
-//    *   The number of downstream StreamIOs to fork.
-//    * @return
-//    *   The forked StreamIOs.
-//    * @see
-//    *   [[StreamFork]]
-//    */
-//  def fork(num: Int, fn: T => Vec[_]): Vec[StreamIO[T]] = {
-//    val uStreamFork = Module(new StreamFork(gen, num))
-//    uStreamFork.io.in << this
-//    uStreamFork.io.outs
-//  }
-
   /** Push this StreamIO to [[Queue]] and return its pop StreamIO.
     *
     * @param queueSize
