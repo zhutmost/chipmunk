@@ -1,8 +1,7 @@
 package chipmunk
 package regbank
 
-import component.AcornWideBusIO
-
+import chipmunk.component.acorn.AcornWideIO
 import chisel3._
 import chisel3.util._
 
@@ -92,7 +91,7 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
 /** Memory-mapped register bank.
   *
   * A register bank is a collection of register elements, which can be accessed through a memory-mapped interface
-  * [[AcornWideBusIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read
+  * [[AcornWideIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read
   * (and even updated) by a backdoor interface [[RegBankFieldIO]].
   *
   * @param addrWidth
@@ -103,7 +102,6 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
   *   Bit width of write mask. Default is 0, which means no mask.
   * @param regs
   *   The configuration of register elements in the register bank.
-  *
   * @example
   *   {{{
   * val uRegBank = Module(new RegBank(32, 32, regs = Seq(
@@ -133,7 +131,7 @@ class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegEl
   val regsConfig = regs
 
   val io = IO(new Bundle {
-    val access = Slave(new AcornWideBusIO(addrWidth = addrWidth, dataWidth = dataWidth, maskUnit = maskUnit))
+    val access = Slave(new AcornWideIO(addrWidth = addrWidth, dataWidth = dataWidth, maskUnit = maskUnit))
     val fields = new RegBankFieldIO(regs)
   })
 
