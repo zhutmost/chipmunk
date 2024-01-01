@@ -9,8 +9,8 @@ import chisel3.util._
 
 /** Chip debugger, which allows users to access the on-chip bus through SPI.
   *
-  * The bus access interface is a parameter-configurable [[AcornWideIO]] master interface. It can be connected to a
-  * AMBA AXI interconnect via [[AcornWideToAxiLiteBridge]].
+  * The bus access interface is a parameter-configurable [[AcornWideIO]] master interface. It can be connected to a AMBA
+  * AXI interconnect via [[AcornWideToAxiLiteBridge]].
   *
   * @param spiClockPriority
   *   Clock priority of SPI, also known as CPOL. If true, idle state of SCK is high, otherwise low.
@@ -19,8 +19,6 @@ import chisel3.util._
   *   otherwise from idle to active.
   * @param busAddrWidth
   *   The bit width of the bus address.
-  * @param busStatusWidth
-  *   The bit width of the bus response status.
   * @param busMaskUnit
   *   Mask unit of the bus interface. Default is 0, which means no mask.
   */
@@ -28,16 +26,13 @@ class SpiDebugger(
   spiClockPriority: Boolean = false,
   spiClockPhase: Boolean = false,
   busAddrWidth: Int = 32,
-  busStatusWidth: Int = 1,
   busMaskUnit: Int = 0
 ) extends Module {
   require(busAddrWidth <= 64, s"busAddrWidth must be less than or equal to 64 but got $busAddrWidth")
 
   val io = IO(new Bundle {
     val sSpi = Slave(new SpiIO)
-    val mDbg = Master(
-      new AcornWideIO(addrWidth = busAddrWidth, dataWidth = 32, statusWidth = busStatusWidth, maskUnit = busMaskUnit)
-    )
+    val mDbg = Master(new AcornWideIO(addrWidth = busAddrWidth, dataWidth = 32, maskUnit = busMaskUnit))
   })
 
   // ---------------------------------------------------------------------------
@@ -205,14 +200,14 @@ class SpiDebugger(
       RegElementConfig(
         "BUS_WR_RESP",
         addr = BUS_WR_RESP.litValue,
-        bitCount = busStatusWidth,
+        bitCount = 1,
         accessType = ReadOnly,
         backdoorUpdate = true
       ),
       RegElementConfig(
         "BUS_RD_RESP",
         addr = BUS_RD_RESP.litValue,
-        bitCount = busStatusWidth,
+        bitCount = 1,
         accessType = ReadOnly,
         backdoorUpdate = true
       ),
@@ -240,10 +235,10 @@ class SpiDebugger(
   uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.rdata
 
   uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.valid := io.mDbg.wr.resp.fire
-  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.resp.bits.status
+  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.resp.bits.status.asUInt
 
   uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.valid := io.mDbg.rd.resp.fire
-  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.status
+  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.status.asUInt
 
   val busAddrBufUpdate = spiStateCntDone && spiStateCurr === SpiState.BUS_ADDR
   uSpiRegFile.io.fields("BUS_ADDR_L").backdoorUpdate.get.valid := busAddrBufUpdate

@@ -26,13 +26,13 @@ private[chipmunk] class AcornSimpleCommandChannel(
   val wmask = if (maskWidth != 0) Some(UInt(maskWidth.W)) else None
 }
 
-private[chipmunk] class AcornSimpleResponseChannel(val dataWidth: Int = 32, val statusWidth: Int = 1) extends Bundle {
+private[chipmunk] class AcornSimpleResponseChannel(val dataWidth: Int = 32) extends Bundle {
 
   /** The responded read-back data. */
   val rdata = UInt(dataWidth.W)
 
   /** The responded status flags. */
-  val status = UInt(statusWidth.W)
+  val status = Bool()
 }
 
 /** Acorn memory-mapped bus interface with a simple read/write-shared channel.
@@ -46,20 +46,18 @@ private[chipmunk] class AcornSimpleResponseChannel(val dataWidth: Int = 32, val 
   *   Data width of the bus interface. Default is 32.
   * @param addrWidth
   *   Address width of the bus interface. Default is 32.
-  * @param statusWidth
-  *   Status width of the bus interface. Default is 1.
   * @param maskUnit
   *   The mask granularity for writing. In general, it should be a power of 2. Keep it 0 to generate no mask signal. For
   *   example, if `maskUnit` is 8, each mask bit corresponds to one byte of the data bits.
   */
-class AcornSimpleIO(val addrWidth: Int = 32, val dataWidth: Int = 32, val statusWidth: Int = 1, val maskUnit: Int = 0)
+class AcornSimpleIO(val addrWidth: Int = 32, val dataWidth: Int = 32, val maskUnit: Int = 0)
     extends Bundle
     with IsMasterSlave {
   val hasMask: Boolean = maskUnit > 0
   val maskWidth: Int   = if (hasMask) ceil(dataWidth.toDouble / maskUnit).toInt else 0
 
   val cmd  = Master(Stream(new AcornSimpleCommandChannel(addrWidth, dataWidth, maskWidth)))
-  val resp = Slave(Stream(new AcornSimpleResponseChannel(dataWidth, statusWidth)))
+  val resp = Slave(Stream(new AcornSimpleResponseChannel(dataWidth)))
 
   def isMaster = true
 }
@@ -78,8 +76,6 @@ class AcornSimpleIO(val addrWidth: Int = 32, val dataWidth: Int = 32, val status
 //  *   Data width of the bus interface. Default is 32.
 //  * @param addrWidth
 //  *   Address width of the bus interface. Default is 32.
-//  * @param statusWidth
-//  *   Status width of the bus interface. Default is 1.
 //  * @param maskUnit
 //  *   The mask granularity for writing. In general, it should be a power of 2. Keep it 0 to generate no mask signal. For
 //  *   example, if `maskUnit` is 8, each mask bit corresponds to one byte of the data bits.
@@ -87,7 +83,6 @@ class AcornSimpleIO(val addrWidth: Int = 32, val dataWidth: Int = 32, val status
 //class AcornSimpleFlowIO(
 //  val addrWidth: Int = 32,
 //  val dataWidth: Int = 32,
-//  val statusWidth: Int = 1,
 //  val maskUnit: Int = 0
 //) extends Bundle
 //    with IsMasterSlave {
@@ -95,7 +90,7 @@ class AcornSimpleIO(val addrWidth: Int = 32, val dataWidth: Int = 32, val status
 //  val maskWidth: Int   = if (hasMask) ceil(dataWidth.toDouble / maskUnit).toInt else 0
 //
 //  val cmd  = Master(Flow(new AcornSimpleCommandChannel(addrWidth, dataWidth, maskWidth)))
-//  val resp = Slave(Flow(new AcornSimpleResponseChannel(dataWidth, statusWidth)))
+//  val resp = Slave(Flow(new AcornSimpleResponseChannel(dataWidth)))
 //
 //  def isMaster = true
 //}
@@ -116,10 +111,10 @@ private[chipmunk] class AcornWideWriteCommandChannel(
   val wmask = if (maskWidth != 0) Some(UInt(maskWidth.W)) else None
 }
 
-private[chipmunk] class AcornWideWriteResponseChannel(val statusWidth: Int = 1) extends Bundle {
+private[chipmunk] class AcornWideWriteResponseChannel() extends Bundle {
 
   /** The responded status flags. */
-  val status = UInt(statusWidth.W)
+  val status = Bool()
 }
 
 private[chipmunk] class AcornWideReadCommandChannel(val addrWidth: Int = 32) extends Bundle {
@@ -128,13 +123,13 @@ private[chipmunk] class AcornWideReadCommandChannel(val addrWidth: Int = 32) ext
   val addr = UInt(addrWidth.W)
 }
 
-private[chipmunk] class AcornWideReadResponseChannel(val dataWidth: Int = 32, val statusWidth: Int = 1) extends Bundle {
+private[chipmunk] class AcornWideReadResponseChannel(val dataWidth: Int = 32) extends Bundle {
 
   /** The responded read-back data. */
   val rdata = UInt(dataWidth.W)
 
   /** The responded status flags. */
-  val status = UInt(statusWidth.W)
+  val status = Bool()
 }
 
 /** Acorn memory-mapped bus interface with two independent [[StreamIO]] channels for read and write.
@@ -143,12 +138,10 @@ private[chipmunk] class AcornWideReadResponseChannel(val dataWidth: Int = 32, va
   *   Data width of the bus interface. Default is 32.
   * @param addrWidth
   *   Address width of the bus interface. Default is 32.
-  * @param statusWidth
-  *   Status width of the bus interface. Default is 1.
   * @param maskUnit
   *   Mask unit of the bus interface. Default is 0, which means no mask.
   */
-class AcornWideIO(val dataWidth: Int = 32, val addrWidth: Int = 32, val statusWidth: Int = 2, val maskUnit: Int = 0)
+class AcornWideIO(val dataWidth: Int = 32, val addrWidth: Int = 32, val maskUnit: Int = 0)
     extends Bundle
     with IsMasterSlave {
   val hasMask: Boolean = maskUnit > 0
@@ -156,11 +149,11 @@ class AcornWideIO(val dataWidth: Int = 32, val addrWidth: Int = 32, val statusWi
 
   val wr = new Bundle {
     val cmd  = Master(Stream(new AcornWideWriteCommandChannel(addrWidth, dataWidth, maskWidth)))
-    val resp = Slave(Stream(new AcornWideWriteResponseChannel(statusWidth)))
+    val resp = Slave(Stream(new AcornWideWriteResponseChannel()))
   }
   val rd = new Bundle {
     val cmd  = Master(Stream(new AcornWideReadCommandChannel(addrWidth)))
-    val resp = Slave(Stream(new AcornWideReadResponseChannel(dataWidth, statusWidth)))
+    val resp = Slave(Stream(new AcornWideReadResponseChannel(dataWidth)))
   }
 
   def isMaster = true
@@ -175,15 +168,12 @@ class AcornWideIO(val dataWidth: Int = 32, val addrWidth: Int = 32, val statusWi
 //  *   Data width of the bus interface. Default is 32.
 //  * @param addrWidth
 //  *   Address width of the bus interface. Default is 32.
-//  * @param statusWidth
-//  *   Status width of the bus interface. Default is 1.
 //  * @param maskUnit
 //  *   Mask unit of the bus interface. Default is 0, which means no mask.
 //  */
 //class AcornWideFlowIO(
 //  val dataWidth: Int = 32,
 //  val addrWidth: Int = 32,
-//  val statusWidth: Int = 2,
 //  val maskUnit: Int = 0
 //) extends Bundle
 //    with IsMasterSlave {
@@ -192,11 +182,11 @@ class AcornWideIO(val dataWidth: Int = 32, val addrWidth: Int = 32, val statusWi
 //
 //  val wr = new Bundle {
 //    val cmd  = Master(Flow(new AcornWideWriteCommandChannel(addrWidth, dataWidth, maskWidth)))
-//    val resp = Slave(Flow(new AcornWideWriteResponseChannel(statusWidth)))
+//    val resp = Slave(Flow(new AcornWideWriteResponseChannel()))
 //  }
 //  val rd = new Bundle {
 //    val cmd  = Master(Flow(new AcornWideReadCommandChannel(addrWidth)))
-//    val resp = Slave(Flow(new AcornWideReadResponseChannel(dataWidth, statusWidth)))
+//    val resp = Slave(Flow(new AcornWideReadResponseChannel(dataWidth)))
 //  }
 //
 //  def isMaster = true

@@ -1,7 +1,7 @@
 package chipmunk
 package amba
 
-import chipmunk.stream
+import stream.Stream
 import chisel3._
 
 object AxiBurstType extends ChiselEnum {
@@ -130,11 +130,11 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends Bundle with I
   //   s"Data width of AXI4 bus can only be 8, 16, 32, 64, 128, 256, 512, or 1024, but got $dataWidth."
   // )
 
-  val aw = Master(stream.Stream(new AxiWriteAddrChannel(addrWidth, idWidth)))
-  val w  = Master(stream.Stream(new AxiWriteDataChannel(dataWidth))) // AXI4 does NOT have WID.
-  val b  = Slave(stream.Stream(new AxiWriteRespChannel(idWidth)))
-  val ar = Master(stream.Stream(new AxiReadAddrChannel(addrWidth, idWidth)))
-  val r  = Slave(stream.Stream(new AxiReadDataChannel(dataWidth, idWidth)))
+  val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth)))
+  val w  = Master(Stream(new AxiWriteDataChannel(dataWidth))) // AXI4 does NOT have WID.
+  val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
+  val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth)))
+  val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 
   val dataWidthByteNum: Int = dataWidth / 8
 }
@@ -149,7 +149,7 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends Bundle with I
   *   The bit width of the bus id.
   */
 class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends Axi4IO(dataWidth, addrWidth, idWidth) {
-  override val aw = Master(stream.Stream(new AxiWriteAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
-  override val w  = Master(stream.Stream(new AxiWriteDataChannel(dataWidth, idWidth)))
-  override val ar = Master(stream.Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+  override val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+  override val w  = Master(Stream(new AxiWriteDataChannel(dataWidth, idWidth)))
+  override val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
 }
