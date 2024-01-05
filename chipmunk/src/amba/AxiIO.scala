@@ -4,56 +4,9 @@ package amba
 import stream.Stream
 import chisel3._
 
-object AxiBurstType extends ChiselEnum {
-  val BURST_FIXED = Value(0.U)
-  val BURST_INCR  = Value(1.U)
-  val BURST_WRAP  = Value(2.U)
-}
-
-object AxiBurstSize extends ChiselEnum {
-  val SIZE1   = Value(0.U)
-  val SIZE2   = Value(1.U)
-  val SIZE4   = Value(2.U)
-  val SIZE8   = Value(3.U)
-  val SIZE16  = Value(4.U)
-  val SIZE32  = Value(5.U)
-  val SIZE64  = Value(6.U)
-  val SIZE128 = Value(7.U)
-}
-
-object AxiResp extends ChiselEnum {
-  val RESP_OKAY   = Value(0.U)
-  val RESP_EXOKAY = Value(1.U)
-  val RESP_SLVERR = Value(2.U)
-  val RESP_DECERR = Value(3.U)
-}
-
-trait HasAxiId extends Bundle {
+private[amba] trait HasAxiId extends Bundle {
   val idWidth: Int
   val id = if (idWidth > 0) Some(UInt(idWidth.W)) else None
-}
-
-class AxiLiteWriteAddrChannel(val addrWidth: Int) extends Bundle {
-  val addr = UInt(addrWidth.W)
-  val prot = UInt(3.W)
-}
-
-class AxiLiteWriteDataChannel(val dataWidth: Int) extends Bundle {
-  val strobeWidth: Int = dataWidth / 8
-
-  val data = UInt(dataWidth.W)
-  val strb = UInt(strobeWidth.W)
-}
-
-class AxiLiteWriteRespChannel() extends Bundle {
-  val resp = AxiResp()
-}
-
-class AxiLiteReadAddrChannel(addrWidth: Int) extends AxiLiteWriteAddrChannel(addrWidth)
-
-class AxiLiteReadDataChannel(val dataWidth: Int) extends Bundle {
-  val data = UInt(dataWidth.W)
-  val resp = AxiResp()
 }
 
 class AxiWriteAddrChannel(addrWidth: Int, val idWidth: Int, val lenWidth: Int = 8, val lockWidth: Int = 1)
@@ -90,26 +43,13 @@ class AxiReadDataChannel(dataWidth: Int, val idWidth: Int) extends AxiLiteReadDa
   val last = Bool()
 }
 
-/** AMBA AXI-Lite IO bundle.
-  *
-  * @param dataWidth
-  *   The bit width of the bus data. It can only be 64 or 32.
-  * @param addrWidth
-  *   The bit width of the bus address.
-  */
-class AxiLiteIO(dataWidth: Int, addrWidth: Int) extends Bundle with IsMasterSlave {
-  override def isMaster = true
+private[amba] abstract class AxiBase(dataWidth: Int, addrWidth: Int, val idWidth: Int)
+    extends AxiLiteBase(dataWidth, addrWidth) {
+  override def allowedDataWidth = List(8, 16, 32, 64, 128, 256, 512, 1024)
 
-  // Do not check dataWidth, because many implementations violate this.
-  // require(List(32, 64) contains dataWidth, s"Data width of AXI4-Lite bus can only be 32 or 64, but got $dataWidth")
+  require(idWidth >= 0, s"ID width of AXI bus must be at least 0, but got $idWidth")
 
-  val aw = Master(stream.Stream(new AxiLiteWriteAddrChannel(addrWidth)))
-  val w  = Master(stream.Stream(new AxiLiteWriteDataChannel(dataWidth)))
-  val b  = Slave(stream.Stream(new AxiLiteWriteRespChannel()))
-  val ar = Master(stream.Stream(new AxiLiteReadAddrChannel(addrWidth)))
-  val r  = Slave(stream.Stream(new AxiLiteReadDataChannel(dataWidth)))
-
-  val dataWidthByteNum: Int = dataWidth / 8
+  val hasId: Boolean = idWidth > 0
 }
 
 /** AMBA AXI4 IO bundle.
@@ -121,22 +61,12 @@ class AxiLiteIO(dataWidth: Int, addrWidth: Int) extends Bundle with IsMasterSlav
   * @param idWidth
   *   The bit width of the bus id.
   */
-class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends Bundle with IsMasterSlave {
-  def isMaster = true
-
-  // Do not check dataWidth, because many implementations violate this.
-  // require(
-  //   List(8, 16, 32, 64, 128, 256, 512, 1024) contains dataWidth,
-  //   s"Data width of AXI4 bus can only be 8, 16, 32, 64, 128, 256, 512, or 1024, but got $dataWidth."
-  // )
-
+class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiBase(dataWidth, addrWidth, idWidth) {
   val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth)))
   val w  = Master(Stream(new AxiWriteDataChannel(dataWidth))) // AXI4 does NOT have WID.
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
-
-  val dataWidthByteNum: Int = dataWidth / 8
 }
 
 /** AMBA AXI3 IO bundle.
@@ -148,8 +78,10 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends Bundle with I
   * @param idWidth
   *   The bit width of the bus id.
   */
-class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends Axi4IO(dataWidth, addrWidth, idWidth) {
-  override val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
-  override val w  = Master(Stream(new AxiWriteDataChannel(dataWidth, idWidth)))
-  override val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiBase(dataWidth, addrWidth, idWidth) {
+  val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+  val w  = Master(Stream(new AxiWriteDataChannel(dataWidth, idWidth)))
+  val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
+  val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+  val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 }
