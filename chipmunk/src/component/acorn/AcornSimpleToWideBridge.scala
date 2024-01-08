@@ -4,16 +4,11 @@ import chipmunk.stream._
 import chisel3._
 import chisel3.util._
 
-class AcornSimpleToWideBridge(
-  dataWidth: Int = 32,
-  addrWidth: Int = 32,
-  statusWidth: Int = 2,
-  maskUnit: Int = 0,
-  outstanding: Int = 16
-) extends Module {
+class AcornSimpleToWideBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit: Int = 0, outstanding: Int = 16)
+    extends Module {
   val io = IO(new Bundle {
-    val sAcornS = Slave(new AcornSimpleIO(addrWidth, dataWidth, statusWidth, maskUnit))
-    val mAcornW = Master(new AcornWideIO(addrWidth, dataWidth, statusWidth, maskUnit))
+    val sAcornS = Slave(new AcornSimpleIO(addrWidth, dataWidth, maskUnit))
+    val mAcornW = Master(new AcornWideIO(addrWidth, dataWidth, maskUnit))
   })
 
   // ---------------------------------------------------------------------------

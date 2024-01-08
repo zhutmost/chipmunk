@@ -6,16 +6,11 @@ import stream._
 import chisel3.util._
 import chisel3._
 
-class AcornWideToSimpleBridge(
-  dataWidth: Int = 32,
-  addrWidth: Int = 32,
-  statusWidth: Int = 2,
-  maskUnit: Int = 0,
-  outstanding: Int = 16
-) extends Module {
+class AcornWideToSimpleBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit: Int = 0, outstanding: Int = 16)
+    extends Module {
   val io = IO(new Bundle {
-    val sAcornW = Slave(new AcornWideIO(addrWidth, dataWidth, statusWidth, maskUnit))
-    val mAcornS = Master(new AcornSimpleIO(addrWidth, dataWidth, statusWidth, maskUnit))
+    val sAcornW = Slave(new AcornWideIO(addrWidth, dataWidth, maskUnit))
+    val mAcornS = Master(new AcornSimpleIO(addrWidth, dataWidth, maskUnit))
   })
 
   // ---------------------------------------------------------------------------
