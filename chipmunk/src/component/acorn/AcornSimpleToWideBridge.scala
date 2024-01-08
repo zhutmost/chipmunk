@@ -35,7 +35,7 @@ class AcornSimpleToWideBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   selectPush.bits  := io.sAcornS.cmd.bits.read
   selectPush.valid := io.sAcornS.cmd.fire
 
-  val selectPop: StreamIO[UInt] = Queue(enq = selectPush, entries = outstanding, pipe = true, flow = true)
+  val selectPop: StreamIO[UInt] = StreamQueue(enq = selectPush, entries = outstanding, pipe = true, flow = true)
 
   // ---------------------------------------------------------------------------
   // Response channel
