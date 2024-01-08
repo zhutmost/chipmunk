@@ -40,8 +40,8 @@ class AcornSimpleToWideBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   // ---------------------------------------------------------------------------
   // Response channel
 
-  val respMuxWr = Wire(Stream(io.sAcornS.resp))
-  val respMuxRd = Wire(Stream(io.sAcornS.resp))
+  val respMuxWr = Wire(Stream(io.sAcornS.resp.bits))
+  val respMuxRd = Wire(Stream(io.sAcornS.resp.bits))
   val respMux   = StreamMux(select = selectPop, ins = VecInit(respMuxWr, respMuxRd))
   respMuxWr.bits.rdata  := 0.U
   respMuxWr.bits.status := io.mAcornW.wr.resp.bits.status

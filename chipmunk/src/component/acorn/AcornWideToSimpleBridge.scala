@@ -16,8 +16,8 @@ class AcornWideToSimpleBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   // ---------------------------------------------------------------------------
   // Command channel
 
-  val cmdArbiterWr = Wire(Stream(io.mAcornS.cmd))
-  val cmdArbiterRd = Wire(Stream(io.mAcornS.cmd))
+  val cmdArbiterWr = Wire(Stream(io.mAcornS.cmd.bits))
+  val cmdArbiterRd = Wire(Stream(io.mAcornS.cmd.bits))
   val cmdArbiter   = StreamArbiter.roundRobin(ins = Seq(cmdArbiterWr, cmdArbiterRd))
 
   cmdArbiterWr handshakeFrom io.sAcornW.wr.cmd

@@ -12,9 +12,7 @@ object StreamArbiter {
       x._1.bits  := x._2.bits
       x._2.ready := x._1.ready
     }
-    val out = Wire(Stream(uArb.io.out))
-    out <> uArb.io.out
-    out
+    uArb.io.out.toStream
   }
 
   def lowerFirst[T <: Data](ins: Seq[StreamIO[T]]): StreamIO[T] = {
@@ -24,9 +22,7 @@ object StreamArbiter {
       x._1.bits  := x._2.bits
       x._2.ready := x._1.ready
     }
-    val out = Wire(Stream(uArb.io.out))
-    out <> uArb.io.out
-    out
+    uArb.io.out.toStream
   }
 }
 

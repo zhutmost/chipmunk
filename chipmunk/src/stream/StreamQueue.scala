@@ -4,8 +4,6 @@ package stream
 import chisel3._
 import chisel3.util._
 
-import scala.annotation.nowarn
-
 object StreamQueue {
 
   /** Create a [[Queue]] and supply a [[StreamIO]] containing the product.
