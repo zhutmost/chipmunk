@@ -345,7 +345,7 @@ class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave
 /** StreamIO factory. */
 object Stream {
 
-  def apply[T <: Data](gen: T) = new StreamIO(chiselTypeOf(gen))
+  def apply[T <: Data](gen: T) = new StreamIO(gen)
 
   /** Returns a [[StreamIO]] interface with no payload. */
   def apply(): StreamIO[Data] = new StreamIO(new EmptyBundle)
