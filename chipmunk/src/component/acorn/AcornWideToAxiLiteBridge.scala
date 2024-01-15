@@ -10,7 +10,7 @@ class AcornWideToAxiLiteBridge(addrWidth: Int = 32, maskUnit: Int = 8) extends M
   val dataWidth: Int   = 32
   val statusWidth: Int = AxiResp.getWidth
   val io = IO(new Bundle {
-    val sAcornW = Slave(new AcornWideIO(addrWidth, dataWidth, statusWidth, maskUnit))
+    val sAcornW = Slave(new AcornWideIO(addrWidth, dataWidth, maskUnit))
     val mAxiL   = Master(new AxiLiteIO(dataWidth, addrWidth))
   })
 
