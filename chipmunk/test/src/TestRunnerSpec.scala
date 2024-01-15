@@ -6,8 +6,8 @@ import chisel3._
 import java.nio.file.Paths
 
 class TestRunnerSimpleSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
-  "TestRunner" should "compile a DUT and run its testbench" in {
-    val compiled = TestRunnerConfig(withWaveform = true).compile(new Module {
+  "TestRunner" should "compile a DUT and run its testbench to generate a waveform" in {
+    val compiled = TestRunnerConfig(withWaveform = true, ephemeral = false).compile(new Module {
       val io = IO(new Bundle {
         val a = Input(SInt(3.W))
         val b = Output(SInt(3.W))
@@ -26,7 +26,7 @@ class TestRunnerSimpleSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
     vcdWaveformPath.toFile.exists() shouldBe true
   }
 
-  it should "compile another DUT and run another testbench" in {
+  it should "compile another DUT and run another testbench in a ephemeral workspace" in {
     val compiled = compile(new Module {
       val io = IO(new Bundle {
         val a = Input(SInt(3.W))
@@ -41,6 +41,7 @@ class TestRunnerSimpleSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.clock.step()
       dut.io.c expect 7
     }
+    // Cannot check whether the workspace is deleted here because the workspace is deleted when the JVM exits.
   }
 }
 

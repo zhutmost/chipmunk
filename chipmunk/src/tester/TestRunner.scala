@@ -29,8 +29,17 @@ trait TestRunner[B <: Backend] {
     *   Whether to enable waveform generation.
     * @param testRunDirPath
     *   The path of the test running directory ("./generate/test" by default).
+    * @param ephemeral
+    *   Whether to delete the simulation workspace after the simulation is finished.
     */
-  case class TestRunnerConfig(withWaveform: Boolean = false, testRunDirPath: String = "generate/test") {
+  case class TestRunnerConfig(
+    withWaveform: Boolean = false,
+    testRunDirPath: String = "generate/test",
+    ephemeral: Boolean = true
+  ) {
+    if (withWaveform) {
+      require(!ephemeral, "Cannot dump waveforms in a ephemeral simulation workspace")
+    }
 
     /** Elaborate the given module, and prepare the other necessary files in the workspace. It will return a
       * [[SimulationContext]] object, and you can call [[SimulationContext.runSim]] to run the simulation.
@@ -45,13 +54,22 @@ trait TestRunner[B <: Backend] {
     def compile[T <: RawModule](module: => T, additionalVerilogResources: Seq[String] = Seq()): SimulationContext[T] = {
       val jvmPid: String        = ProcessHandle.current().pid().toString
       val timestamp: String     = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(LocalDateTime.now())
-      val workspacePath: String = Seq(testRunDirPath, className, s"$jvmPid-$timestamp").mkString("/")
+      val workspacePath: String = Seq(testRunDirPath, className, s"$timestamp-$jvmPid").mkString("/")
 
       val workspace = new Workspace(workspacePath)
       workspace.reset()
       val elaboratedModule = workspace.elaborateGeneratedModule(() => module)
       additionalVerilogResources.foreach(workspace.addPrimarySourceFromResource(getClass, _))
       workspace.generateAdditionalSources()
+
+      if (ephemeral) {
+        // Note that if an Exception is thrown during the simulation, the shutdown hook will not be executed.
+        sys.addShutdownHook {
+          import scala.reflect.io.Directory
+          import java.io.File
+          new Directory(new File(workspace.absolutePath)).deleteRecursively()
+        }
+      }
 
       val context = new SimulationContext(this, workspace, elaboratedModule)
       context
