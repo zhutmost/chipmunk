@@ -143,22 +143,6 @@ Code example:
 TODO
 ```
 
-### Structural SRAM Macro Wrapper
-[View detailed document]()
-
-Code example:
-```scala
-TODO
-```
-
-<!-- ### Miscellaneous things I don't know where to put them
-[View detailed document]()
-
-Code example:
-```scala
-val emptyStream = Stream(new EmptyBundle) // Bundle without elements
-``` -->
-
 (Not all above document pages are ready yet.)
 
 I am sorry they are written in Chinese (Machine translation driven by AI is good enough now :D).
