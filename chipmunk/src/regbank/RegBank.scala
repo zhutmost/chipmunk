@@ -30,7 +30,7 @@ object RegElementConfig {
 
   /** Create a register element configuration with only one field.
     *
-    * It has only one field with the name "*".
+    * It has only one field with the name "UNNAMED".
     *
     * @see
     *   [[RegElementConfig]]
