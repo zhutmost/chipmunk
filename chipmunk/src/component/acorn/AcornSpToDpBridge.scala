@@ -1,14 +1,13 @@
 package chipmunk
 package component.acorn
-import chipmunk.stream._
-import chisel3._
-import chisel3.util._
+import stream._
 
-class AcornSimpleToWideBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit: Int = 0, outstanding: Int = 16)
-    extends Module {
+import chisel3._
+
+class AcornSpToDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: Int = 16) extends Module {
   val io = IO(new Bundle {
-    val sAcornS = Slave(new AcornSimpleIO(addrWidth, dataWidth, maskUnit))
-    val mAcornW = Master(new AcornWideIO(addrWidth, dataWidth, maskUnit))
+    val sAcornS = Slave(new AcornSpIO(dataWidth, addrWidth))
+    val mAcornD = Master(new AcornDpIO(dataWidth, addrWidth))
   })
 
   // ---------------------------------------------------------------------------
@@ -18,15 +17,13 @@ class AcornSimpleToWideBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   val cmdDemuxWr = cmdDemux(0)
   val cmdDemuxRd = cmdDemux(1)
 
-  io.mAcornW.wr.cmd handshakeFrom cmdDemuxWr
-  io.mAcornW.wr.cmd.bits.addr  := cmdDemuxWr.bits.addr
-  io.mAcornW.wr.cmd.bits.wdata := cmdDemuxWr.bits.wdata
-  if (io.mAcornW.hasMask) {
-    io.mAcornW.wr.cmd.bits.wmask.get := cmdDemuxWr.bits.wmask.get
-  }
+  io.mAcornD.wr.cmd handshakeFrom cmdDemuxWr
+  io.mAcornD.wr.cmd.bits.addr  := cmdDemuxWr.bits.addr
+  io.mAcornD.wr.cmd.bits.wdata := cmdDemuxWr.bits.wdata
+  io.mAcornD.wr.cmd.bits.wmask := cmdDemuxWr.bits.wmask
 
-  io.mAcornW.rd.cmd handshakeFrom cmdDemuxRd
-  io.mAcornW.rd.cmd.bits.addr := cmdDemuxRd.bits.addr
+  io.mAcornD.rd.cmd handshakeFrom cmdDemuxRd
+  io.mAcornD.rd.cmd.bits.addr := cmdDemuxRd.bits.addr
 
   // ---------------------------------------------------------------------------
   // Select generation
@@ -44,9 +41,9 @@ class AcornSimpleToWideBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   val respMuxRd = Wire(Stream(io.sAcornS.resp.bits))
   val respMux   = StreamMux(select = selectPop, ins = VecInit(respMuxWr, respMuxRd))
   respMuxWr.bits.rdata  := 0.U
-  respMuxWr.bits.status := io.mAcornW.wr.resp.bits.status
-  respMuxRd.bits.rdata  := io.mAcornW.rd.resp.bits.rdata
-  respMuxRd.bits.status := io.mAcornW.rd.resp.bits.status
+  respMuxWr.bits.status := io.mAcornD.wr.resp.bits.status
+  respMuxRd.bits.rdata  := io.mAcornD.rd.resp.bits.rdata
+  respMuxRd.bits.status := io.mAcornD.rd.resp.bits.status
 
   io.sAcornS.resp << respMux
 }

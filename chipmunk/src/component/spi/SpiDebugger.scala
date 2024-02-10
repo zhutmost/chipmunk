@@ -9,8 +9,8 @@ import chisel3.util._
 
 /** Chip debugger, which allows users to access the on-chip bus through SPI.
   *
-  * The bus access interface is a parameter-configurable [[AcornWideIO]] master interface. It can be connected to a AMBA
-  * AXI interconnect via [[AcornWideToAxiLiteBridge]].
+  * The bus access interface is a parameter-configurable [[AcornDpIO]] master interface. It can be connected to a AMBA
+  * AXI interconnect via [[AcornDpToAxiLiteBridge]].
   *
   * @param spiClockPriority
   *   Clock priority of SPI, also known as CPOL. If true, idle state of SCK is high, otherwise low.
@@ -19,20 +19,14 @@ import chisel3.util._
   *   otherwise from idle to active.
   * @param busAddrWidth
   *   The bit width of the bus address.
-  * @param busMaskUnit
-  *   Mask unit of the bus interface. Default is 0, which means no mask.
   */
-class SpiDebugger(
-  spiClockPriority: Boolean = false,
-  spiClockPhase: Boolean = false,
-  busAddrWidth: Int = 32,
-  busMaskUnit: Int = 0
-) extends Module {
+class SpiDebugger(spiClockPriority: Boolean = false, spiClockPhase: Boolean = false, busAddrWidth: Int = 32)
+    extends Module {
   require(busAddrWidth <= 64, s"busAddrWidth must be less than or equal to 64 but got $busAddrWidth")
 
   val io = IO(new Bundle {
     val sSpi = Slave(new SpiIO)
-    val mDbg = Master(new AcornWideIO(addrWidth = busAddrWidth, dataWidth = 32, maskUnit = busMaskUnit))
+    val mDbg = Master(new AcornDpIO(dataWidth = 32, addrWidth = busAddrWidth))
   })
 
   // ---------------------------------------------------------------------------
@@ -184,18 +178,7 @@ class SpiDebugger(
       Seq(RegElementConfig("BUS_ADDR_H", addr = BUS_ADDR_H.litValue, bitCount = 32))
     } else Seq()
 
-    val regFileConfigMask: Seq[RegElementConfig] = if (io.mDbg.hasMask) {
-      Seq(
-        RegElementConfig(
-          "BUS_WR_MASK",
-          addr = BUS_WR_MASK.litValue,
-          bitCount = io.mDbg.maskWidth,
-          initValue = Fill(io.mDbg.maskWidth, true.B)
-        )
-      )
-    } else Seq()
-
-    regFileConfigAddrH ++ regFileConfigMask ++ Seq(
+    regFileConfigAddrH ++ Seq(
       RegElementConfig("BUS_ADDR_L", addr = BUS_ADDR_L.litValue, bitCount = busAddrWidth min 32, backdoorUpdate = true),
       RegElementConfig(
         "BUS_WR_RESP",
@@ -213,6 +196,12 @@ class SpiDebugger(
       ),
       RegElementConfig("BUS_WR_DATA", addr = BUS_WR_DATA.litValue, bitCount = 32, backdoorUpdate = true),
       RegElementConfig("BUS_RD_DATA", addr = BUS_RD_DATA.litValue, bitCount = 32, backdoorUpdate = true),
+      RegElementConfig(
+        "BUS_WR_MASK",
+        addr = BUS_WR_MASK.litValue,
+        bitCount = io.mDbg.wr.cmd.bits.maskWidth,
+        initValue = Fill(io.mDbg.wr.cmd.bits.maskWidth, true.B)
+      ),
       RegElementConfig("TEST", addr = TEST.litValue, bitCount = 32, initValue = 0x3f1b_00e5.U(32.W))
     )
   }
@@ -278,10 +267,7 @@ class SpiDebugger(
   io.mDbg.rd.cmd.valid := buRdReqValid
 
   io.mDbg.wr.cmd.bits.wdata := uSpiRegFile.io.fields("BUS_WR_DATA").value
-
-  if (io.mDbg.hasMask) {
-    io.mDbg.wr.cmd.bits.wmask.get := uSpiRegFile.io.fields("BUS_WR_MASK").value
-  }
+  io.mDbg.wr.cmd.bits.wmask := uSpiRegFile.io.fields("BUS_WR_MASK").value
 
   if (busAddrWidth > 32) {
     io.mDbg.wr.cmd.bits.addr := uSpiRegFile.io.fields("BUS_ADDR_H").value ## uSpiRegFile.io.fields("BUS_ADDR_L").value

@@ -3,14 +3,13 @@ package component.acorn
 
 import stream._
 
-import chisel3.util._
 import chisel3._
+import chisel3.util._
 
-class AcornWideToSimpleBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit: Int = 0, outstanding: Int = 16)
-    extends Module {
+class AcornDpToSpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: Int = 16) extends Module {
   val io = IO(new Bundle {
-    val sAcornW = Slave(new AcornWideIO(addrWidth, dataWidth, maskUnit))
-    val mAcornS = Master(new AcornSimpleIO(addrWidth, dataWidth, maskUnit))
+    val sAcornD = Slave(new AcornDpIO(dataWidth, addrWidth))
+    val mAcornS = Master(new AcornSpIO(dataWidth, addrWidth))
   })
 
   // ---------------------------------------------------------------------------
@@ -20,21 +19,17 @@ class AcornWideToSimpleBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   val cmdArbiterRd = Wire(Stream(io.mAcornS.cmd.bits))
   val cmdArbiter   = StreamArbiter.roundRobin(ins = Seq(cmdArbiterWr, cmdArbiterRd))
 
-  cmdArbiterWr handshakeFrom io.sAcornW.wr.cmd
-  cmdArbiterWr.bits.addr  := io.sAcornW.wr.cmd.bits.addr
+  cmdArbiterWr handshakeFrom io.sAcornD.wr.cmd
+  cmdArbiterWr.bits.addr  := io.sAcornD.wr.cmd.bits.addr
   cmdArbiterWr.bits.read  := false.B
-  cmdArbiterWr.bits.wdata := io.sAcornW.wr.cmd.bits.wdata
-  if (io.sAcornW.hasMask) {
-    cmdArbiterWr.bits.wmask.get := io.sAcornW.wr.cmd.bits.wmask.get
-  }
+  cmdArbiterWr.bits.wdata := io.sAcornD.wr.cmd.bits.wdata
+  cmdArbiterWr.bits.wmask := io.sAcornD.wr.cmd.bits.wmask
 
-  cmdArbiterRd handshakeFrom io.sAcornW.rd.cmd
-  cmdArbiterRd.bits.addr  := io.sAcornW.rd.cmd.bits.addr
+  cmdArbiterRd handshakeFrom io.sAcornD.rd.cmd
+  cmdArbiterRd.bits.addr  := io.sAcornD.rd.cmd.bits.addr
   cmdArbiterRd.bits.read  := true.B
   cmdArbiterWr.bits.wdata := 0.U
-  if (io.sAcornW.hasMask) {
-    cmdArbiterWr.bits.wmask.get := Fill(io.sAcornW.maskWidth, true.B)
-  }
+  cmdArbiterWr.bits.wmask := Fill(io.mAcornS.cmd.bits.maskWidth, true.B)
 
   io.mAcornS.cmd << cmdArbiter
 
@@ -54,10 +49,10 @@ class AcornWideToSimpleBridge(dataWidth: Int = 32, addrWidth: Int = 32, maskUnit
   val respDemuxWr = respDemux(0)
   val respDemuxRd = respDemux(1)
 
-  io.sAcornW.wr.resp handshakeFrom respDemuxWr
-  io.sAcornW.rd.resp.bits.status := respDemuxRd.bits.status
-  io.sAcornW.rd.resp.bits.rdata  := respDemuxRd.bits.rdata
+  io.sAcornD.wr.resp handshakeFrom respDemuxWr
+  io.sAcornD.rd.resp.bits.status := respDemuxRd.bits.status
+  io.sAcornD.rd.resp.bits.rdata  := respDemuxRd.bits.rdata
 
-  io.sAcornW.rd.resp handshakeFrom respDemuxRd
-  io.sAcornW.wr.resp.bits.status := respDemuxWr.bits.status
+  io.sAcornD.rd.resp handshakeFrom respDemuxRd
+  io.sAcornD.wr.resp.bits.status := respDemuxWr.bits.status
 }

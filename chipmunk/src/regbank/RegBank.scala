@@ -1,7 +1,8 @@
 package chipmunk
 package regbank
 
-import chipmunk.component.acorn.AcornWideIO
+import component.acorn.AcornDpIO
+
 import chisel3._
 import chisel3.util._
 
@@ -120,7 +121,7 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
   * uRegBank.io.fields("STATUS_ERROR").backdoorUpdate.get.bits  := 1.U
   *   }}}
   */
-class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegElementConfig]) extends Module {
+class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) extends Module {
   if (regs.length >= 2) {
     require(
       regs.combinations(2).forall(x => x.head.addr != x.last.addr),
@@ -131,7 +132,7 @@ class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegEl
   val regsConfig = regs
 
   val io = IO(new Bundle {
-    val access = Slave(new AcornWideIO(addrWidth = addrWidth, dataWidth = dataWidth, maskUnit = maskUnit))
+    val access = Slave(new AcornDpIO(dataWidth = dataWidth, addrWidth = addrWidth))
     val fields = new RegBankFieldIO(regs)
   })
 
@@ -183,11 +184,9 @@ class RegBank(addrWidth: Int, dataWidth: Int, maskUnit: Int = 0, regs: Seq[RegEl
     val elemConfig   = regs(idxElem)
     val elemWrEnable = io.access.wr.cmd.fire && elemWrAddrHits(idxElem)
     val elemRdEnable = io.access.rd.cmd.fire && elemRdAddrHits(idxElem)
-    val elemWrBitMask = if (io.access.hasMask) {
-      val mask: UInt = io.access.wr.cmd.bits.wmask.get
-      Cat(mask.asBools.reverse.flatMap(b => Seq.fill(io.access.maskUnit)(b)))
-    } else {
-      Fill(dataWidth, 1.B)
+    val elemWrBitMask = {
+      val mask: UInt = io.access.wr.cmd.bits.wmask
+      Cat(mask.asBools.reverse.flatMap(b => Seq.fill(8)(b)))
     }
 
     val elemFields = elemConfig.fields
