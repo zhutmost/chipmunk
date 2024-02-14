@@ -31,5 +31,5 @@ abstract class MapBundle[T <: Data](elts: (String, T)*) extends Record {
     field -> DataMirror.internal.chiselTypeClone(elt)
   }: _*)
 
-  def apply(elt: String): T = elements(elt)
+  def apply(key: String): T = elements(key)
 }
