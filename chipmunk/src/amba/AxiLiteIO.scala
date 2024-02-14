@@ -1,10 +1,10 @@
 package chipmunk
 package amba
 
-import stream.Stream
+import stream.{Stream, StreamIO}
 import chisel3._
 
-class AxiLiteWriteAddrChannel(val addrWidth: Int) extends Bundle {
+class AxiLiteAddrChannel(val addrWidth: Int) extends Bundle {
   val addr = UInt(addrWidth.W)
   val prot = UInt(3.W)
 }
@@ -19,8 +19,6 @@ class AxiLiteWriteDataChannel(val dataWidth: Int) extends Bundle {
 class AxiLiteWriteRespChannel() extends Bundle {
   val resp = AxiResp()
 }
-
-class AxiLiteReadAddrChannel(addrWidth: Int) extends AxiLiteWriteAddrChannel(addrWidth)
 
 class AxiLiteReadDataChannel(val dataWidth: Int) extends Bundle {
   val data = UInt(dataWidth.W)
@@ -38,10 +36,15 @@ private[amba] abstract class AxiLiteBase(val dataWidth: Int, val addrWidth: Int)
   //   s"Data width can only be 32 or 64, but got $dataWidth"
   // )
 
-  require(dataWidth > 0, s"Data width must be at least 1, but got $dataWidth")
   require(addrWidth > 0, s"Address width must be at least 1, but got $addrWidth")
 
   val dataWidthByteNum: Int = dataWidth / 8
+
+  val aw: StreamIO[AxiLiteAddrChannel]
+  val w: StreamIO[AxiLiteWriteDataChannel]
+  val b: StreamIO[AxiLiteWriteRespChannel]
+  val ar: StreamIO[AxiLiteAddrChannel]
+  val r: StreamIO[AxiLiteReadDataChannel]
 }
 
 /** AMBA AXI-Lite IO bundle.
@@ -52,9 +55,9 @@ private[amba] abstract class AxiLiteBase(val dataWidth: Int, val addrWidth: Int)
   *   The bit width of the bus address.
   */
 class AxiLiteIO(dataWidth: Int, addrWidth: Int) extends AxiLiteBase(dataWidth, addrWidth) {
-  val aw = Master(Stream(new AxiLiteWriteAddrChannel(addrWidth)))
+  val aw = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val w  = Master(Stream(new AxiLiteWriteDataChannel(dataWidth)))
   val b  = Slave(Stream(new AxiLiteWriteRespChannel()))
-  val ar = Master(Stream(new AxiLiteReadAddrChannel(addrWidth)))
+  val ar = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val r  = Slave(Stream(new AxiLiteReadDataChannel(dataWidth)))
 }
