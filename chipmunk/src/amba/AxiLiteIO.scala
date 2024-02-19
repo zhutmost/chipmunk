@@ -7,6 +7,10 @@ import chisel3._
 class AxiLiteAddrChannel(val addrWidth: Int) extends Bundle {
   val addr = UInt(addrWidth.W)
   val prot = UInt(3.W)
+
+  def protPrivileged: Bool  = prot(0).asBool
+  def protNonsecure: Bool   = prot(1).asBool
+  def protInstruction: Bool = prot(2).asBool
 }
 
 class AxiLiteWriteDataChannel(val dataWidth: Int) extends Bundle {
@@ -25,7 +29,7 @@ class AxiLiteReadDataChannel(val dataWidth: Int) extends Bundle {
   val resp = AxiResp()
 }
 
-private[amba] abstract class AxiLiteBase(val dataWidth: Int, val addrWidth: Int) extends Bundle with IsMasterSlave {
+private[amba] abstract class AxiLiteIOBase(val dataWidth: Int, val addrWidth: Int) extends Bundle with IsMasterSlave {
   override def isMaster = true
 
   def allowedDataWidth: List[Int] = List(32, 64)
@@ -47,17 +51,19 @@ private[amba] abstract class AxiLiteBase(val dataWidth: Int, val addrWidth: Int)
   val r: StreamIO[AxiLiteReadDataChannel]
 }
 
-/** AMBA AXI-Lite IO bundle.
+/** AMBA4 AXI-Lite IO bundle.
   *
   * @param dataWidth
   *   The bit width of the bus data. It can only be 64 or 32.
   * @param addrWidth
   *   The bit width of the bus address.
   */
-class AxiLiteIO(dataWidth: Int, addrWidth: Int) extends AxiLiteBase(dataWidth, addrWidth) {
+class Axi4LiteIO(dataWidth: Int, addrWidth: Int) extends AxiLiteIOBase(dataWidth, addrWidth) {
   val aw = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val w  = Master(Stream(new AxiLiteWriteDataChannel(dataWidth)))
   val b  = Slave(Stream(new AxiLiteWriteRespChannel()))
   val ar = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val r  = Slave(Stream(new AxiLiteReadDataChannel(dataWidth)))
 }
+
+type AxiLiteIO = Axi4LiteIO

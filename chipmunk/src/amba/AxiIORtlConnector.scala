@@ -121,7 +121,7 @@ object AxiIORtlConnector {
   private[amba] def postfixPortName(portName: String, postfix: Option[String]): String =
     postfix.map(p => portName + s"_$p").getOrElse(portName)
 
-  private def mapPortsToRtlConnector(rc: AxiIORtlConnector, b: AxiBase) = {
+  private def mapPortsToRtlConnector(rc: AxiIORtlConnector, b: AxiIOBase) = {
     var portPairs = Seq(
       rc("AWADDR")  -> b.aw.bits.addr,
       rc("AWLEN")   -> b.aw.bits.len,

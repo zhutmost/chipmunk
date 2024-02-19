@@ -10,7 +10,7 @@ private[amba] trait HasAxiId extends Bundle {
   val id = if (idWidth > 0) Some(UInt(idWidth.W)) else None
 }
 
-class AxiAddrChannel(
+class AxiWriteAddrChannel(
   addrWidth: Int,
   val idWidth: Int,
   val lenWidth: Int = 8,
@@ -32,8 +32,20 @@ class AxiAddrChannel(
 
   def cacheBufferable: Bool     = cache(0).asBool
   def cacheModifiable: Bool     = cache(1).asBool
-  def cacheAllocated: Bool      = cache(2).asBool
-  def cacheOtherAllocated: Bool = cache(3).asBool
+  def cacheOtherAllocated: Bool = cache(2).asBool
+  def cacheAllocated: Bool      = cache(3).asBool
+}
+
+class AxiReadAddrChannel(
+  addrWidth: Int,
+  idWidth: Int,
+  lenWidth: Int = 8,
+  lockWidth: Int = 1,
+  hasQos: Boolean = false,
+  hasRegion: Boolean = false
+) extends AxiWriteAddrChannel(addrWidth, idWidth, lenWidth, lockWidth, hasQos, hasRegion) {
+  override def cacheAllocated: Bool      = cache(2).asBool
+  override def cacheOtherAllocated: Bool = cache(3).asBool
 }
 
 class AxiWriteDataChannel(dataWidth: Int, val idWidth: Int = 0)
@@ -48,7 +60,7 @@ class AxiReadDataChannel(dataWidth: Int, val idWidth: Int) extends AxiLiteReadDa
   val last = Bool()
 }
 
-private[amba] abstract class AxiBase(val dataWidth: Int, val addrWidth: Int, val idWidth: Int)
+private[amba] abstract class AxiIOBase(val dataWidth: Int, val addrWidth: Int, val idWidth: Int)
     extends Bundle
     with IsMasterSlave {
   override def isMaster = true
@@ -62,14 +74,14 @@ private[amba] abstract class AxiBase(val dataWidth: Int, val addrWidth: Int, val
   val dataWidthByteNum: Int = dataWidth / 8
   val hasId: Boolean        = idWidth > 0
 
-  val aw: StreamIO[AxiAddrChannel]
+  val aw: StreamIO[AxiWriteAddrChannel]
   val w: StreamIO[AxiWriteDataChannel]
   val b: StreamIO[AxiWriteRespChannel]
-  val ar: StreamIO[AxiAddrChannel]
+  val ar: StreamIO[AxiReadAddrChannel]
   val r: StreamIO[AxiReadDataChannel]
 }
 
-/** AMBA AXI4 IO bundle.
+/** AMBA4 AXI IO bundle.
   *
   * @param dataWidth
   *   The bit width of the bus data.
@@ -83,15 +95,15 @@ private[amba] abstract class AxiBase(val dataWidth: Int, val addrWidth: Int, val
   *   Whether the bus has region signals.
   */
 class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = false, hasRegion: Boolean = false)
-    extends AxiBase(dataWidth, addrWidth, idWidth) {
-  val aw = Master(Stream(new AxiAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
+    extends AxiIOBase(dataWidth, addrWidth, idWidth) {
+  val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
   val w  = Master(Stream(new AxiWriteDataChannel(dataWidth))) // AXI4 does NOT have WID.
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
-  val ar = Master(Stream(new AxiAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
+  val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 }
 
-/** AMBA AXI3 IO bundle.
+/** AMBA3 AXI IO bundle.
   *
   * @param dataWidth
   *   The bit width of the bus data.
@@ -100,10 +112,12 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = fal
   * @param idWidth
   *   The bit width of the bus id.
   */
-class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiBase(dataWidth, addrWidth, idWidth) {
-  val aw = Master(Stream(new AxiAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiIOBase(dataWidth, addrWidth, idWidth) {
+  val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val w  = Master(Stream(new AxiWriteDataChannel(dataWidth, idWidth)))
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
-  val ar = Master(Stream(new AxiAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
+  val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 }
+
+type AxiIO = Axi4IO
