@@ -65,5 +65,3 @@ class Axi4LiteIO(dataWidth: Int, addrWidth: Int) extends AxiLiteIOBase(dataWidth
   val ar = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val r  = Slave(Stream(new AxiLiteReadDataChannel(dataWidth)))
 }
-
-type AxiLiteIO = Axi4LiteIO

@@ -9,7 +9,7 @@ class AcornDpToAxiLiteBridge(dataWidth: Int = 32, addrWidth: Int = 32) extends M
   val statusWidth: Int = AxiResp.getWidth
   val io = IO(new Bundle {
     val sAcornD = Slave(new AcornDpIO(dataWidth, addrWidth))
-    val mAxiL   = Master(new AxiLiteIO(dataWidth, addrWidth))
+    val mAxiL   = Master(new Axi4LiteIO(dataWidth, addrWidth))
   })
 
   // ---------------------------------------------------------------------------

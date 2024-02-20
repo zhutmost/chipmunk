@@ -119,5 +119,3 @@ class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiIOBase(dat
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 }
-
-type AxiIO = Axi4IO
