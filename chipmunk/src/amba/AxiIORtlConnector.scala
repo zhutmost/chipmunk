@@ -14,7 +14,7 @@ import chisel3.experimental.dataview.DataView
   *
   * @note
   *   This class only supports optional name suffixes. Prefixes can be implemented naturally through signal naming. If
-  *   you don't need the prefix part of the port name, consider using [[FlatIO]] instead of [[IO]].
+  *   you don't need the prefix part of the port names, consider using [[FlatIO]] instead of [[IO]].
   *
   * @example
   *   {{{
@@ -58,7 +58,7 @@ private[amba] class AxiIORtlConnector(
         "AWLEN"    -> Output(UInt(lenWidth.W)),
         "AWSIZE"   -> Output(AxiBurstSize()),
         "AWBURST"  -> Output(AxiBurstType()),
-        "ANLOCK"   -> Output(UInt(lockWidth.W)),
+        "AWLOCK"   -> Output(UInt(lockWidth.W)),
         "AWCACHE"  -> Output(UInt(4.W)),
         "AWPROT"   -> Output(UInt(3.W)),
         "AWQOS"    -> (if (hasQos) Some(Output(UInt(4.W))) else None),
@@ -127,7 +127,7 @@ object AxiIORtlConnector {
       rc("AWLEN")   -> b.aw.bits.len,
       rc("AWSIZE")  -> b.aw.bits.size,
       rc("AWBURST") -> b.aw.bits.burst,
-      rc("ANLOCK")  -> b.aw.bits.lock,
+      rc("AWLOCK")  -> b.aw.bits.lock,
       rc("AWCACHE") -> b.aw.bits.cache,
       rc("AWPROT")  -> b.aw.bits.prot,
       rc("AWVALID") -> b.aw.valid,

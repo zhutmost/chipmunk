@@ -68,8 +68,8 @@ private[amba] abstract class AxiIOBase(val dataWidth: Int, val addrWidth: Int, v
   def allowedDataWidth = List(8, 16, 32, 64, 128, 256, 512, 1024)
   require(allowedDataWidth contains dataWidth, s"Data width can only be 8, 16, ..., or 1024, but got $dataWidth")
 
-  require(addrWidth > 0, s"Address width must be at least 1, but got $addrWidth")
-  require(idWidth >= 0, s"ID width of AXI bus must be at least 0, but got $idWidth")
+  require(addrWidth > 0, s"Address width must be at least 1, but got $addrWidth.")
+  require(idWidth >= 0, s"ID width of AXI bus must be at least 0, but got $idWidth.")
 
   val dataWidthByteNum: Int = dataWidth / 8
   val hasId: Boolean        = idWidth > 0
