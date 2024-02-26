@@ -7,15 +7,24 @@ import chisel3._
 
 import scala.math.ceil
 
-private[acorn] object AcornUtils {
+private[acorn] abstract class AcornIOBase(val dataWidth: Int, val addrWidth: Int) extends Bundle with IsMasterSlave {
+  override def isMaster = true
+
+  require(dataWidth > 0, s"Data width of Acorn bus must be at least 1, but got $dataWidth.")
+  require(addrWidth > 0, s"Address width of Acorn bus must be at least 1, but got $addrWidth.")
+
+  val maskWidth: Int = AcornIOBase.maskWidth(dataWidth)
+}
+
+private[acorn] object AcornIOBase {
   def maskWidth(dataWidth: Int, maskUnit: Int = 8): Int = {
     val maskWidth: Int = math.ceil(dataWidth.toDouble / maskUnit).toInt
     maskWidth
   }
 }
 
-private[chipmunk] class AcornSpCommandChannel(val dataWidth: Int = 32, val addrWidth: Int = 32) extends Bundle {
-  val maskWidth: Int = AcornUtils.maskWidth(dataWidth)
+private[acorn] class AcornSpCommandChannel(val dataWidth: Int, val addrWidth: Int) extends Bundle {
+  val maskWidth: Int = AcornIOBase.maskWidth(dataWidth)
 
   /** Whether the current request is a read request. */
   val read = Bool()
@@ -30,7 +39,7 @@ private[chipmunk] class AcornSpCommandChannel(val dataWidth: Int = 32, val addrW
   val wmask = UInt(maskWidth.W)
 }
 
-private[chipmunk] class AcornSpResponseChannel(val dataWidth: Int = 32) extends Bundle {
+private[acorn] class AcornSpResponseChannel(val dataWidth: Int) extends Bundle {
 
   /** The responded read-back data. */
   val rdata = UInt(dataWidth.W)
@@ -51,20 +60,13 @@ private[chipmunk] class AcornSpResponseChannel(val dataWidth: Int = 32) extends 
   * @param addrWidth
   *   Address width of the bus interface. Default is 32.
   */
-class AcornSpIO(val dataWidth: Int = 32, val addrWidth: Int = 32) extends Bundle with IsMasterSlave {
-  require(dataWidth > 0, s"Data width of Acorn bus must be at least 1, but got $dataWidth")
-  require(addrWidth > 0, s"Address width of Acorn bus must be at least 1, but got $addrWidth")
-
+class AcornSpIO(dataWidth: Int, addrWidth: Int) extends AcornIOBase(dataWidth, addrWidth) {
   val cmd  = Master(Stream(new AcornSpCommandChannel(dataWidth, addrWidth)))
   val resp = Slave(Stream(new AcornSpResponseChannel(dataWidth)))
-
-  val maskWidth: Int = cmd.bits.maskWidth
-
-  def isMaster = true
 }
 
-private[chipmunk] class AcornDpWriteCommandChannel(val dataWidth: Int = 32, val addrWidth: Int = 32) extends Bundle {
-  val maskWidth: Int = AcornUtils.maskWidth(dataWidth)
+private[acorn] class AcornDpWriteCommandChannel(val dataWidth: Int, val addrWidth: Int) extends Bundle {
+  val maskWidth: Int = AcornIOBase.maskWidth(dataWidth)
 
   /** The write address. */
   val addr = UInt(addrWidth.W)
@@ -76,19 +78,19 @@ private[chipmunk] class AcornDpWriteCommandChannel(val dataWidth: Int = 32, val 
   val wmask = UInt(maskWidth.W)
 }
 
-private[chipmunk] class AcornDpWriteResponseChannel() extends Bundle {
+private[acorn] class AcornDpWriteResponseChannel() extends Bundle {
 
   /** The responded status flags. */
   val status = Bool()
 }
 
-private[chipmunk] class AcornDpReadCommandChannel(val addrWidth: Int = 32) extends Bundle {
+private[acorn] class AcornDpReadCommandChannel(val addrWidth: Int) extends Bundle {
 
   /** The read address. */
   val addr = UInt(addrWidth.W)
 }
 
-private[chipmunk] class AcornDpReadResponseChannel(val dataWidth: Int = 32) extends Bundle {
+private[acorn] class AcornDpReadResponseChannel(val dataWidth: Int) extends Bundle {
 
   /** The responded read-back data. */
   val rdata = UInt(dataWidth.W)
@@ -104,10 +106,7 @@ private[chipmunk] class AcornDpReadResponseChannel(val dataWidth: Int = 32) exte
   * @param addrWidth
   *   Address width of the bus interface. Default is 32.
   */
-class AcornDpIO(val dataWidth: Int = 32, val addrWidth: Int = 32) extends Bundle with IsMasterSlave {
-  require(dataWidth > 0, s"Data width of Acorn bus must be at least 1, but got $dataWidth")
-  require(addrWidth > 0, s"Address width of Acorn bus must be at least 1, but got $addrWidth")
-
+class AcornDpIO(dataWidth: Int, addrWidth: Int) extends AcornIOBase(dataWidth, addrWidth) {
   val wr = new Bundle {
     val cmd  = Master(Stream(new AcornDpWriteCommandChannel(dataWidth, addrWidth)))
     val resp = Slave(Stream(new AcornDpWriteResponseChannel()))
@@ -116,8 +115,4 @@ class AcornDpIO(val dataWidth: Int = 32, val addrWidth: Int = 32) extends Bundle
     val cmd  = Master(Stream(new AcornDpReadCommandChannel(addrWidth)))
     val resp = Slave(Stream(new AcornDpReadResponseChannel(dataWidth)))
   }
-
-  val maskWidth: Int = wr.cmd.bits.maskWidth
-
-  def isMaster = true
 }

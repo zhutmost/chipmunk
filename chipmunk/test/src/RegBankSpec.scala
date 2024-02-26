@@ -81,7 +81,7 @@ class RegBankSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   it should "allow field frontdoor writing with mask" in {
     val regsConfig =
       Seq(RegElementConfig("R1", addr = 0, bitCount = 16, initValue = 0x1234.U))
-    val compiled = compile(new RegBank(addrWidth = 8, dataWidth = 16, maskUnit = 8, regs = regsConfig))
+    val compiled = compile(new RegBank(addrWidth = 8, dataWidth = 16, regs = regsConfig))
     compiled.runSim { dut =>
       import TestRunnerUtils._
       dut.reset #= true
@@ -92,7 +92,7 @@ class RegBankSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.io.access.rd.resp.ready #= true
       dut.io.access.wr.cmd.valid #= true
       dut.io.access.wr.cmd.bits.addr #= 0.U
-      dut.io.access.wr.cmd.bits.wmask.get #= 0x1.U
+      dut.io.access.wr.cmd.bits.wmask #= 0x1.U
       dut.io.access.wr.cmd.bits.wdata #= 0x5678.U
       dut.io.fields("R1").value expect 0x1234.U
       dut.clock.step()
@@ -107,7 +107,7 @@ class RegBankSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
         RegElementConfig("R2", addr = 1, bitCount = 16, accessType = RegFieldAccessType.WriteOneToggle),
         RegElementConfig("R3", addr = 2, bitCount = 16, accessType = RegFieldAccessType.ReadOnly)
       )
-    val compiled = compile(new RegBank(addrWidth = 8, dataWidth = 16, maskUnit = 8, regs = regsConfig))
+    val compiled = compile(new RegBank(addrWidth = 8, dataWidth = 16, regs = regsConfig))
     compiled.runSim { dut =>
       import TestRunnerUtils._
       dut.reset #= true
@@ -118,7 +118,7 @@ class RegBankSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.io.access.rd.resp.ready #= true
       dut.io.access.wr.cmd.valid #= true
       dut.io.access.wr.cmd.bits.addr #= 0.U
-      dut.io.access.wr.cmd.bits.wmask.get #= 0x1.U
+      dut.io.access.wr.cmd.bits.wmask #= 0x1.U
       dut.io.access.wr.cmd.bits.wdata #= 0x1234.U
       dut.io.fields("R1").value expect 0.U
       dut.clock.step()
@@ -130,7 +130,7 @@ class RegBankSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.io.access.rd.cmd.valid #= false
       dut.io.access.wr.cmd.valid #= true
       dut.io.access.wr.cmd.bits.addr #= 1.U
-      dut.io.access.wr.cmd.bits.wmask.get #= 0x3.U
+      dut.io.access.wr.cmd.bits.wmask #= 0x3.U
       dut.io.access.wr.cmd.bits.wdata #= 0x5555.U
       dut.io.fields("R2").value expect 0.U
       dut.clock.step()
