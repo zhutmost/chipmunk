@@ -2,6 +2,7 @@ package chipmunk
 package amba
 
 import stream.{Stream, StreamIO}
+
 import chisel3._
 
 class AxiLiteAddrChannel(val addrWidth: Int) extends Bundle {

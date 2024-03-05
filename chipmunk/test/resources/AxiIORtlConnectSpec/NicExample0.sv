@@ -106,9 +106,9 @@ module NicExample0 (
     assign WVALID_m_axi_sram = WVALID_s_axi_spi;
     assign WREADY_s_axi_spi  = WREADY_m_axi_sram;
 
-    assign BID_s_axi_spi    = BID_m_axi_sram;
-    assign BRESP_s_axi_spi  = BRESP_m_axi_sram;
-    assign BVALID_s_axi_spi = BVALID_m_axi_sram;
+    assign BID_s_axi_spi     = BID_m_axi_sram;
+    assign BRESP_s_axi_spi   = BRESP_m_axi_sram;
+    assign BVALID_s_axi_spi  = BVALID_m_axi_sram;
     assign BREADY_m_axi_sram = BREADY_s_axi_spi;
 
     assign ARID_m_axi_sram    = ARID_s_axi_spi;

@@ -37,6 +37,8 @@ import chisel3.experimental.dataview.DataView
   * @param postfix
   *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
   *   AWADDR_abc). Leave it None if you don't need it.
+  * @param toggleCase
+  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
   * @param axi3
   *   Whether the bus is AXI3. Default is false (i.e., AXI4).
   */
@@ -47,8 +49,9 @@ private[amba] class AxiIORtlConnector(
   val hasQos: Boolean = false,
   val hasRegion: Boolean = false,
   postfix: Option[String] = None,
+  toggleCase: Boolean = false,
   axi3: Boolean = false
-) extends MapBundle({
+) extends RtlConnector(postfix, toggleCase)({
       val strobeWidth: Int = dataWidth / 8
       val lockWidth: Int   = if (axi3) 2 else 1
       val lenWidth: Int    = if (axi3) 4 else 8
@@ -94,12 +97,8 @@ private[amba] class AxiIORtlConnector(
         "RVALID"   -> Input(Bool()),
         "RREADY"   -> Output(Bool())
       ).collect {
-        case (key, Some(value: Data)) =>
-          val renamedKey = AxiIORtlConnector.postfixPortName(key, postfix)
-          renamedKey -> value
-        case (key, value: Data) =>
-          val renamedKey = AxiIORtlConnector.postfixPortName(key, postfix)
-          renamedKey -> value
+        case (key, Some(value: Data)) => key -> value
+        case (key, value: Data)       => key -> value
       }
       axiPorts
     }: _*)
@@ -110,17 +109,9 @@ private[amba] class AxiIORtlConnector(
   }
 
   override def isMaster = true
-
-  override def apply(key: String) = {
-    val renamedKey = AxiIORtlConnector.postfixPortName(key, postfix)
-    elements(renamedKey)
-  }
 }
 
 object AxiIORtlConnector {
-  private[amba] def postfixPortName(portName: String, postfix: Option[String]): String =
-    postfix.map(p => portName + s"_$p").getOrElse(portName)
-
   private def mapPortsToRtlConnector(rc: AxiIORtlConnector, b: AxiIOBase) = {
     var portPairs = Seq(
       rc("AWADDR")  -> b.aw.bits.addr,
@@ -207,6 +198,8 @@ object AxiIORtlConnector {
   * @param postfix
   *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
   *   AWADDR_abc). Leave it None if you don't need it.
+  * @param toggleCase
+  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
   *
   * @see
   *   [[AxiIORtlConnector]]
@@ -217,7 +210,8 @@ class Axi4IORtlConnector(
   idWidth: Int,
   hasQos: Boolean = false,
   hasRegion: Boolean = false,
-  postfix: Option[String] = None
+  postfix: Option[String] = None,
+  toggleCase: Boolean = false
 ) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion, postfix)
 
 /** Generate a [[Axi3IO]] interface with blackbox-friendly port names.
@@ -239,9 +233,16 @@ class Axi4IORtlConnector(
   * @param postfix
   *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
   *   AWADDR_abc). Leave it None if you don't need it.
+  * @param toggleCase
+  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
   *
   * @see
   *   [[AxiIORtlConnector]]
   */
-class Axi3IORtlConnector(dataWidth: Int, addrWidth: Int, idWidth: Int, postfix: Option[String] = None)
-    extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, postfix = postfix, axi3 = true)
+class Axi3IORtlConnector(
+  dataWidth: Int,
+  addrWidth: Int,
+  idWidth: Int,
+  postfix: Option[String] = None,
+  toggleCase: Boolean = false
+) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, postfix = postfix, axi3 = true)
