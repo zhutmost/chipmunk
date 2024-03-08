@@ -20,12 +20,16 @@ import chisel3.util._
   * @param busAddrWidth
   *   The bit width of the bus address.
   */
-class SpiDebugger(spiClockPriority: Boolean = false, spiClockPhase: Boolean = false, busAddrWidth: Int = 32)
-    extends Module {
+class SpiDebugger(
+  hasMisoValid: Boolean = false,
+  spiClockPriority: Boolean = false,
+  spiClockPhase: Boolean = false,
+  busAddrWidth: Int = 32
+) extends Module {
   require(busAddrWidth <= 64, s"busAddrWidth must be less than or equal to 64 but got $busAddrWidth")
 
   val io = IO(new Bundle {
-    val sSpi = Slave(new SpiIO)
+    val sSpi = Slave(new SpiIO(hasMisoValid))
     val mDbg = Master(new AcornDpIO(dataWidth = 32, addrWidth = busAddrWidth))
   })
 
@@ -294,4 +298,7 @@ class SpiDebugger(spiClockPriority: Boolean = false, spiClockPhase: Boolean = fa
   }
 
   io.sSpi.miso := spiTxData(31)
+  if (hasMisoValid) {
+    io.sSpi.misoValid.get := RegNext(io.sSpi.ssn === false.B)
+  }
 }
