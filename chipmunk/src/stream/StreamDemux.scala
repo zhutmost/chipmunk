@@ -7,14 +7,14 @@ import chisel3.util._
 /** Demultiplex one stream into multiple output streams, always selecting only one at a time. */
 object StreamDemux {
   def apply[T <: Data](in: StreamIO[T], select: UInt, num: Int): Vec[StreamIO[T]] = {
-    val c = Module(new StreamDemux(in.bits, num))
+    val c = Module(new StreamDemux(in.bits.cloneType, num))
     c.io.in << in
     c.io.select := select
     c.io.outs
   }
 
   def apply[T <: Data](in: StreamIO[T], select: StreamIO[UInt], num: Int): Vec[StreamIO[T]] = {
-    val c = Module(new StreamDemux(in.bits, num))
+    val c = Module(new StreamDemux(in.bits.cloneType, num))
     c.io.in << in
     select >> c.io.createSelectStream()
     c.io.outs
@@ -28,7 +28,7 @@ class StreamDemux[T <: Data](dataType: T, num: Int) extends Module {
     val outs   = Vec(num, Master(Stream(dataType)))
 
     def createSelectStream(): StreamIO[UInt] = {
-      val stream  = Wire(Stream(select))
+      val stream  = Wire(Stream(select.cloneType))
       val regFlow = stream.haltWhen(in.isPending).toFlow(readyFreeRun = true)
       select := RegEnable(regFlow.bits, 0.U, regFlow.fire)
       stream

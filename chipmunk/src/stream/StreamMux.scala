@@ -7,14 +7,14 @@ import chisel3.util._
 /** Multiplex multiple streams into a single one, always only processing one at a time. */
 object StreamMux {
   def apply[T <: Data](select: UInt, ins: Vec[StreamIO[T]]): StreamIO[T] = {
-    val uMux = Module(new StreamMux(ins(0).bits, ins.length))
+    val uMux = Module(new StreamMux(ins(0).bits.cloneType, ins.length))
     (uMux.io.ins zip ins).foreach(x => x._1 << x._2)
     uMux.io.select := select
     uMux.io.out
   }
 
   def apply[T <: Data](select: StreamIO[UInt], ins: Vec[StreamIO[T]]): StreamIO[T] = {
-    val uMux = Module(new StreamMux(ins(0).bits, ins.length))
+    val uMux = Module(new StreamMux(ins(0).bits.cloneType, ins.length))
     (uMux.io.ins zip ins).foreach(x => x._1 << x._2)
     select >> uMux.io.createSelectStream()
     uMux.io.out
@@ -28,7 +28,7 @@ class StreamMux[T <: Data](gen: T, num: Int) extends Module {
     val out: StreamIO[T]      = Master(Stream(gen))
 
     def createSelectStream(): StreamIO[UInt] = {
-      val stream  = Wire(Stream(select))
+      val stream  = Wire(Stream(select.cloneType))
       val regFlow = stream.haltWhen(out.isPending).toFlow(readyFreeRun = true)
       select := RegEnable(regFlow.bits, 0.U, regFlow.fire)
       stream

@@ -15,8 +15,8 @@ class AcornDpToSpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: I
   // ---------------------------------------------------------------------------
   // Command channel
 
-  val cmdArbiterWr = Wire(Stream(io.mAcornS.cmd.bits))
-  val cmdArbiterRd = Wire(Stream(io.mAcornS.cmd.bits))
+  val cmdArbiterWr = Wire(Stream(io.mAcornS.cmd.bits.cloneType))
+  val cmdArbiterRd = Wire(Stream(io.mAcornS.cmd.bits.cloneType))
   val cmdArbiter   = StreamArbiter.roundRobin(ins = Seq(cmdArbiterWr, cmdArbiterRd))
 
   cmdArbiterWr handshakeFrom io.sAcornD.wr.cmd
@@ -28,15 +28,15 @@ class AcornDpToSpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: I
   cmdArbiterRd handshakeFrom io.sAcornD.rd.cmd
   cmdArbiterRd.bits.addr  := io.sAcornD.rd.cmd.bits.addr
   cmdArbiterRd.bits.read  := true.B
-  cmdArbiterWr.bits.wdata := 0.U
-  cmdArbiterWr.bits.wmask := Fill(io.mAcornS.cmd.bits.maskWidth, true.B)
+  cmdArbiterRd.bits.wdata := 0.U
+  cmdArbiterRd.bits.wmask := Fill(io.mAcornS.cmd.bits.maskWidth, true.B)
 
   io.mAcornS.cmd << cmdArbiter
 
   // ---------------------------------------------------------------------------
   // Select generation
 
-  val selectPush: StreamIO[UInt] = Wire(Stream(io.mAcornS.cmd.bits.read.asUInt))
+  val selectPush: StreamIO[UInt] = Wire(Stream(io.mAcornS.cmd.bits.read.asUInt.cloneType))
   selectPush.bits  := io.mAcornS.cmd.bits.read
   selectPush.valid := io.mAcornS.cmd.fire
 

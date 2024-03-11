@@ -45,7 +45,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
   val arAddr  = RegInit(0.U(io.sAxi4.addrWidth.W))
   val arBurst = RegInit(AxiBurstType.BURST_INCR)
   val arLen   = RegInit(0.U(8.W))
-  val arId    = if (io.sAxi4.hasId) Some(RegInit(0.U(io.sAxi4.idWidth.W))) else None
+  val rId     = if (io.sAxi4.hasId) Some(RegInit(0.U(io.sAxi4.idWidth.W))) else None
 
   io.mAcornW.rd.cmd.valid     := readCmdState === ReadState.BUSY
   io.mAcornW.rd.cmd.bits.addr := arAddr
@@ -56,6 +56,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
   io.sAxi4.r.bits.data := io.mAcornW.rd.resp.bits.rdata
   io.sAxi4.r.bits.resp := Mux(io.mAcornW.rd.resp.bits.status, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
   io.sAxi4.r.bits.last := readRespCnt === arLen
+  if (io.sAxi4.hasId) { io.sAxi4.r.bits.id.get := rId.get }
 
   switch(readCmdState) {
     is(ReadState.IDLE) {
@@ -66,7 +67,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
         arBurst      := io.sAxi4.ar.bits.burst
         arLen        := io.sAxi4.ar.bits.len
         if (io.sAxi4.hasId) {
-          arId.get := io.sAxi4.ar.bits.id.get
+          rId.get := io.sAxi4.ar.bits.id.get
         }
       }
     }
@@ -124,15 +125,18 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
   val bId    = if (idWidth > 0) Some(RegInit(0.U(io.sAxi4.idWidth.W))) else None
   val bResp  = RegInit(AxiResp.RESP_OKAY)
 
-  io.sAxi4.aw.ready := writeCmdState === WriteState.IDLE
-  io.sAxi4.w.ready  := writeCmdState === WriteState.BUSY && io.mAcornW.wr.cmd.ready
-  io.sAxi4.b.valid  := bValid
+  io.sAxi4.aw.ready    := writeCmdState === WriteState.IDLE
+  io.sAxi4.w.ready     := writeCmdState === WriteState.BUSY && io.mAcornW.wr.cmd.ready
+  io.sAxi4.b.valid     := bValid
+  io.sAxi4.b.bits.resp := bResp
   if (io.sAxi4.hasId) { io.sAxi4.b.bits.id.get := bId.get }
 
   io.mAcornW.wr.cmd.valid      := writeCmdState === WriteState.BUSY && io.sAxi4.w.valid
   io.mAcornW.wr.cmd.bits.addr  := awAddr
   io.mAcornW.wr.cmd.bits.wdata := io.sAxi4.w.bits.data
   io.mAcornW.wr.cmd.bits.wmask := io.sAxi4.w.bits.strb
+
+  io.mAcornW.wr.resp.ready := io.sAxi4.b.ready
 
   switch(writeCmdState) {
     is(WriteState.IDLE) {
