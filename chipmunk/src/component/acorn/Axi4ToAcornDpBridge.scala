@@ -5,7 +5,7 @@ import amba._
 import chisel3._
 import chisel3.util._
 
-class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int = 0) {
+class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int = 0) extends Module {
   val io = IO(new Bundle {
     val sAxi4   = Slave(new Axi4IO(dataWidth = dataWidth, addrWidth = addrWidth, idWidth = idWidth))
     val mAcornW = Master(new AcornDpIO(dataWidth = dataWidth, addrWidth = addrWidth))

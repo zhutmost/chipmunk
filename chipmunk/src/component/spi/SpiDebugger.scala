@@ -204,7 +204,7 @@ class SpiDebugger(
         "BUS_WR_MASK",
         addr = BUS_WR_MASK.litValue,
         bitCount = io.mDbg.wr.cmd.bits.maskWidth,
-        initValue = Fill(io.mDbg.wr.cmd.bits.maskWidth, true.B)
+        initValue = ((2 << io.mDbg.wr.cmd.bits.maskWidth) - 1).U
       ),
       RegElementConfig("TEST", addr = TEST.litValue, bitCount = 32, initValue = 0x3f1b_00e5.U(32.W))
     )
@@ -216,6 +216,7 @@ class SpiDebugger(
   uSpiRegFile.io.access.wr.cmd.valid      := regFileWrEnable
   uSpiRegFile.io.access.wr.cmd.bits.addr  := regFileWrAddr
   uSpiRegFile.io.access.wr.cmd.bits.wdata := spiRxData
+  uSpiRegFile.io.access.wr.cmd.bits.wmask := Fill(32, true.B)
   uSpiRegFile.io.access.wr.resp.ready     := true.B
 
   uSpiRegFile.io.access.rd.cmd.valid     := true.B
