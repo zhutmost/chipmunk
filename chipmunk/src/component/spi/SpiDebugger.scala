@@ -92,6 +92,7 @@ class SpiDebugger(
 
   // Declare here to avoid "not fully initialized" error
   val spiCmdNext = WireDefault(SpiCmd.NOP)
+  val spiCmdCurr = RegEnable(spiCmdNext, SpiCmd.NOP, spiStateCntDone && spiStateCurr === SpiState.CMD)
 
   when(spiSsnPosEdge) {
     spiStateNext := SpiState.IDLE
@@ -117,7 +118,7 @@ class SpiDebugger(
       }
       is(SpiState.BUS_ADDR) {
         when(spiStateCntDone) {
-          spiStateNext := MuxLookup(spiCmdNext, SpiState.IDLE)(
+          spiStateNext := MuxLookup(spiCmdCurr, SpiState.IDLE)(
             Seq(SpiCmd.BUS_RD -> SpiState.BUS_RD_DUMMY, SpiCmd.BUS_WR -> SpiState.BUS_WR_DATA)
           )
         }
@@ -158,8 +159,6 @@ class SpiDebugger(
   }.elsewhen(!spiCmdRaw(7)) {
     spiCmdNext := Mux(spiCmdRaw(6), SpiCmd.REG_RD, SpiCmd.REG_WR)
   }
-
-  val spiCmdCurr = RegEnable(spiCmdNext, SpiCmd.NOP, spiStateCntDone && spiStateCurr === SpiState.CMD)
 
   // ---------------------------------------------------------------------------
   // Register file
