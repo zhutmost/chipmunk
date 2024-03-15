@@ -17,7 +17,7 @@ class AcornDpToSpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: I
 
   val cmdArbiterWr = Wire(Stream(io.mAcornS.cmd.bits.cloneType))
   val cmdArbiterRd = Wire(Stream(io.mAcornS.cmd.bits.cloneType))
-  val cmdArbiter   = StreamArbiter.roundRobin(ins = Seq(cmdArbiterWr, cmdArbiterRd))
+  val cmdArbiter   = StreamArbiter.lowerFirst(ins = Seq(cmdArbiterWr, cmdArbiterRd))
 
   cmdArbiterWr handshakeFrom io.sAcornD.wr.cmd
   cmdArbiterWr.bits.addr  := io.sAcornD.wr.cmd.bits.addr
