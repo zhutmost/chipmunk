@@ -89,7 +89,7 @@ SPI Debugger 支持的 Command 包括：
 
 其传输序列为：`Command` (8b) + `RdData` (32b)
 
-在 `WrData` 阶段，SPI Debugger 将 32 bit 的寄存器读出数据通过 MISO 线发送给 SPI Master。
+在 `RdData` 阶段，SPI Debugger 将 32 bit 的寄存器读出数据通过 MISO 线发送给 SPI Master。
 
 ### `BUS_WR`
 
