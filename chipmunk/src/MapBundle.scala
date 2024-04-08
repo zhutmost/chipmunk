@@ -47,7 +47,7 @@ abstract class MapBundle[T <: Data](elts: (String, T)*) extends Record {
 abstract class RtlConnector[T <: Data](postfix: Option[String] = None, toggleCase: Boolean = false)(
   portMap: (String, T)*
 ) extends Record {
-  private def toggleCasePortNmae(portName: String): String = {
+  private def toggleCasePortName(portName: String): String = {
     if (toggleCase) portName.map(c => if (c.isUpper) c.toLower else c.toUpper) else portName
   }
 
@@ -57,7 +57,7 @@ abstract class RtlConnector[T <: Data](postfix: Option[String] = None, toggleCas
 
   // Override this method to customize the port name formatting.
   def formatPortName(portName: String): String = {
-    postfixPortName(toggleCasePortNmae(portName))
+    postfixPortName(toggleCasePortName(portName))
   }
 
   val elements = SeqMap(portMap.collect { case (field, elt) =>
