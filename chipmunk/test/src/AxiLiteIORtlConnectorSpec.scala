@@ -15,9 +15,9 @@ class NicExample2Bbox(dw: Int = 32, aw: Int = 32)
   val resetn = IO(Input(Reset()))
 
   val s0 =
-    IO(Slave(new Axi4LiteIORtlConnector(dataWidth = dw, addrWidth = aw, toggleCase = true))).suggestName("s00_axi")
+    IO(Slave(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).rtlConnector(toggleCase = true))).suggestName("s00_axi")
   val m0 =
-    IO(Master(new Axi4LiteIORtlConnector(dataWidth = dw, addrWidth = aw, toggleCase = true))).suggestName("m00_axi")
+    IO(Master(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).rtlConnector(toggleCase = true))).suggestName("m00_axi")
 
   override def desiredName = "NicExample2"
   addResource("AxiIORtlConnectSpec/NicExample2.sv")

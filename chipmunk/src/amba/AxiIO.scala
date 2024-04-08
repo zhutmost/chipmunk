@@ -101,6 +101,10 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = fal
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
+
+  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
+    new Axi4IORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(postfix, toggleCase)
+  }
 }
 
 /** AMBA3 AXI IO bundle.
@@ -118,4 +122,8 @@ class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiIOBase(dat
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
+
+  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
+    new Axi3IORtlConnector(dataWidth, addrWidth, idWidth)(postfix, toggleCase)
+  }
 }

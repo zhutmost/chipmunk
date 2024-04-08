@@ -24,9 +24,7 @@ import chisel3.experimental.dataview.DataView
   * @param toggleCase
   *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
   */
-class Axi4LiteIORtlConnector(
-  val dataWidth: Int,
-  val addrWidth: Int,
+class Axi4LiteIORtlConnector(val dataWidth: Int, val addrWidth: Int)(
   postfix: Option[String] = None,
   toggleCase: Boolean = false
 ) extends RtlConnector(postfix, toggleCase)(

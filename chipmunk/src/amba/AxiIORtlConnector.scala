@@ -209,10 +209,9 @@ class Axi4IORtlConnector(
   addrWidth: Int,
   idWidth: Int,
   hasQos: Boolean = false,
-  hasRegion: Boolean = false,
-  postfix: Option[String] = None,
-  toggleCase: Boolean = false
-) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion, postfix)
+  hasRegion: Boolean = false
+)(postfix: Option[String] = None, toggleCase: Boolean = false)
+    extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion, postfix, toggleCase)
 
 /** Generate a [[Axi3IO]] interface with blackbox-friendly port names.
   *
@@ -239,10 +238,7 @@ class Axi4IORtlConnector(
   * @see
   *   [[AxiIORtlConnector]]
   */
-class Axi3IORtlConnector(
-  dataWidth: Int,
-  addrWidth: Int,
-  idWidth: Int,
+class Axi3IORtlConnector(dataWidth: Int, addrWidth: Int, idWidth: Int)(
   postfix: Option[String] = None,
   toggleCase: Boolean = false
-) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, postfix = postfix, axi3 = true)
+) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, postfix = postfix, toggleCase = toggleCase, axi3 = true)
