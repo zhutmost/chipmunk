@@ -30,10 +30,15 @@ class AxiWriteAddrChannel(
   val qos    = if (hasQos) Some(UInt(4.W)) else None
   val region = if (hasRegion) Some(UInt(4.W)) else None
 
+  // The bellow AxCACHE are defined according to AXI4 specification.
   def cacheBufferable: Bool     = cache(0).asBool
   def cacheModifiable: Bool     = cache(1).asBool
   def cacheOtherAllocated: Bool = cache(2).asBool
   def cacheAllocated: Bool      = cache(3).asBool
+
+  def lockNormal: Bool    = lock === 0.U
+  def lockExclusive: Bool = lock === 1.U
+  def lockLocked: Bool    = if (lockWidth == 2) lock === 2.U else false.B
 }
 
 class AxiReadAddrChannel(
@@ -66,7 +71,7 @@ private[amba] abstract class AxiIOBase(val dataWidth: Int, val addrWidth: Int, v
   override def isMaster = true
 
   def allowedDataWidth = List(8, 16, 32, 64, 128, 256, 512, 1024)
-  require(allowedDataWidth contains dataWidth, s"Data width can only be 8, 16, ..., or 1024, but got $dataWidth")
+  require(allowedDataWidth contains dataWidth, s"Data width can only be 8, 16, ..., or 1024, but got $dataWidth.")
 
   require(addrWidth > 0, s"Address width must be at least 1, but got $addrWidth.")
   require(idWidth >= 0, s"ID width of AXI bus must be at least 0, but got $idWidth.")

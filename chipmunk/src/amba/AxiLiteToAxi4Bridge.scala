@@ -20,6 +20,7 @@ class AxiLiteToAxi4Bridge(dataWidth: Int, addrWidth: Int, idWidth: Int, writeId:
   io.mAxi4.aw.bits.lock  := 0.U
   io.mAxi4.aw.bits.cache := 3.U // Recommended by Xilinx UG1037
   io.mAxi4.aw.bits.qos.foreach(_ := 0.U)
+  io.mAxi4.aw.bits.region.foreach(_ := 0.U)
   io.mAxi4.aw.bits.id.foreach(_ := writeId.U)
 
   io.mAxi4.ar handshakeFrom io.sAxiL.ar
@@ -31,6 +32,7 @@ class AxiLiteToAxi4Bridge(dataWidth: Int, addrWidth: Int, idWidth: Int, writeId:
   io.mAxi4.ar.bits.lock  := 0.U
   io.mAxi4.ar.bits.cache := 3.U // Recommended by Xilinx UG1037
   io.mAxi4.ar.bits.qos.foreach(_ := 0.U)
+  io.mAxi4.ar.bits.region.foreach(_ := 0.U)
   io.mAxi4.ar.bits.id.foreach(_ := readId.U)
 
   io.mAxi4.w handshakeFrom io.sAxiL.w

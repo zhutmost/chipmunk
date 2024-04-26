@@ -5,8 +5,6 @@ import stream._
 
 import chisel3._
 
-import scala.math.ceil
-
 private[acorn] abstract class AcornIOBase(val dataWidth: Int, val addrWidth: Int) extends Bundle with IsMasterSlave {
   override def isMaster = true
 

@@ -19,7 +19,7 @@ import chisel3.experimental.dataview.DataView
   * @param addrWidth
   *   The bit width of the bus address.
   * @param postfix
-  *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR -> *
+  *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
   *   AWADDR_abc). Leave it None if you don't need it.
   * @param toggleCase
   *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
@@ -49,7 +49,6 @@ class Axi4LiteIORtlConnector(val dataWidth: Int, val addrWidth: Int)(
       "RREADY"  -> Output(Bool())
     )
     with IsMasterSlave {
-
   override def isMaster = true
 }
 
