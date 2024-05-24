@@ -1,12 +1,13 @@
 package chipmunk.test
+package stream
 
-import chipmunk.stream._
 import chipmunk._
+import chipmunk.stream._
 import chipmunk.tester._
 import chisel3._
 import chisel3.util.DecoupledIO
 
-class StreamSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class StreamIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   "Stream" should "be created from DecoupledIO or Chisel types" in {
     compile(new Module {
       val io = IO(new Bundle {
