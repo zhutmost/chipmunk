@@ -56,6 +56,7 @@ class RegBankSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.clock.step()
       dut.io.access.wr.resp.ready #= true
       dut.io.access.rd.resp.ready #= true
+      dut.io.access.wr.cmd.bits.wmask #= 0x3.U
       dut.io.fields("R1").value expect 0x1234.U
       dut.io.fields("R2_F1").value expect 0x56.U
       dut.io.fields("R2_F2").value expect 0x78.U
