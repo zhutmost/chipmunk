@@ -50,9 +50,9 @@ class AcornDpToSpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: I
   val respDemuxRd = respDemux(1)
 
   io.sAcornD.wr.resp handshakeFrom respDemuxWr
-  io.sAcornD.rd.resp.bits.status := respDemuxRd.bits.status
-  io.sAcornD.rd.resp.bits.rdata  := respDemuxRd.bits.rdata
+  io.sAcornD.rd.resp.bits.error := respDemuxRd.bits.error
+  io.sAcornD.rd.resp.bits.rdata := respDemuxRd.bits.rdata
 
   io.sAcornD.rd.resp handshakeFrom respDemuxRd
-  io.sAcornD.wr.resp.bits.status := respDemuxWr.bits.status
+  io.sAcornD.wr.resp.bits.error := respDemuxWr.bits.error
 }

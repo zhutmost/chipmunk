@@ -43,7 +43,7 @@ private[acorn] class AcornSpResponseChannel(val dataWidth: Int) extends Bundle {
   val rdata = UInt(dataWidth.W)
 
   /** The responded status flags. */
-  val status = Bool()
+  val error = Bool()
 }
 
 /** Acorn memory-mapped bus interface with a simple read/write-shared channel.
@@ -79,7 +79,7 @@ private[acorn] class AcornDpWriteCommandChannel(val dataWidth: Int, val addrWidt
 private[acorn] class AcornDpWriteResponseChannel() extends Bundle {
 
   /** The responded status flags. */
-  val status = Bool()
+  val error = Bool()
 }
 
 private[acorn] class AcornDpReadCommandChannel(val addrWidth: Int) extends Bundle {
@@ -93,8 +93,8 @@ private[acorn] class AcornDpReadResponseChannel(val dataWidth: Int) extends Bund
   /** The responded read-back data. */
   val rdata = UInt(dataWidth.W)
 
-  /** The responded status flags. */
-  val status = Bool()
+  /** The responded status flag. */
+  val error = Bool()
 }
 
 /** Acorn memory-mapped bus interface with two independent [[StreamIO]] channels for read and write.

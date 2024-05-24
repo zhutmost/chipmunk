@@ -228,10 +228,10 @@ class SpiDebugger(
   uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.rdata
 
   uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.valid := io.mDbg.wr.resp.fire
-  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.resp.bits.status.asUInt
+  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.resp.bits.error.asUInt
 
   uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.valid := io.mDbg.rd.resp.fire
-  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.status.asUInt
+  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.error.asUInt
 
   val busAddrBufUpdate = spiStateCntDone && spiStateCurr === SpiState.BUS_ADDR
   uSpiRegFile.io.fields("BUS_ADDR_L").backdoorUpdate.get.valid := busAddrBufUpdate

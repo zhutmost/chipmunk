@@ -92,15 +92,13 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
 /** Memory-mapped register bank.
   *
   * A register bank is a collection of register elements, which can be accessed through a memory-mapped interface
-  * [[AcornWideIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read (and
+  * [[AcornDpIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read (and
   * even updated) by a backdoor interface [[RegBankFieldIO]].
   *
   * @param addrWidth
   *   Bit width of write/read address.
   * @param dataWidth
   *   Bit width of write/read data.
-  * @param maskUnit
-  *   Bit width of write mask. Default is 0, which means no mask.
   * @param regs
   *   The configuration of register elements in the register bank.
   * @example
@@ -176,8 +174,8 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
     rdRespData := rdDataNext
   }
 
-  io.access.wr.resp.bits.status := wrRespStatus
-  io.access.rd.resp.bits.status := rdRespStatus
+  io.access.wr.resp.bits.error := wrRespStatus
+  io.access.rd.resp.bits.error := rdRespStatus
   io.access.rd.resp.bits.rdata  := rdRespData
 
   for (idxElem <- regs.indices) {

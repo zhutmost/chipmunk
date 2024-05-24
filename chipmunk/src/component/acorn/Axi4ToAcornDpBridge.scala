@@ -54,7 +54,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
 
   io.sAxi4.r handshakeFrom io.mAcornW.rd.resp
   io.sAxi4.r.bits.data := io.mAcornW.rd.resp.bits.rdata
-  io.sAxi4.r.bits.resp := Mux(io.mAcornW.rd.resp.bits.status, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
+  io.sAxi4.r.bits.resp := Mux(io.mAcornW.rd.resp.bits.error, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
   io.sAxi4.r.bits.last := readRespCnt === arLen
   if (io.sAxi4.hasId) { io.sAxi4.r.bits.id.get := rId.get }
 
