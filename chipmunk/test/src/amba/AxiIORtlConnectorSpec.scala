@@ -18,7 +18,7 @@ class NicExample0Bbox extends ExtModule with HasExtModuleResource {
     FlatIO(Master(new Axi4IORtlConnector(dataWidth = 128, addrWidth = 32, idWidth = 2)(postfix = Some("m_axi_sram"))))
 
   override def desiredName = "NicExample0"
-  addResource("AxiIORtlConnectSpec/NicExample0.sv")
+  addResource("AxiIORtlConnectorSpec/NicExample0.sv")
 }
 
 class NicExample1Bbox extends ExtModule with HasExtModuleResource {
@@ -30,7 +30,7 @@ class NicExample1Bbox extends ExtModule with HasExtModuleResource {
     .suggestName("m_axi_sram")
 
   override def desiredName = "NicExample1"
-  addResource("AxiIORtlConnectSpec/NicExample1.sv")
+  addResource("AxiIORtlConnectorSpec/NicExample1.sv")
 }
 
 class AxiIORtlConnectorSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
