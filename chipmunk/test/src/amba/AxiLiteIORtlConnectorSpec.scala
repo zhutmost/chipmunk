@@ -1,4 +1,5 @@
 package chipmunk.test
+package amba
 
 import chipmunk._
 import chipmunk.amba._
@@ -20,7 +21,7 @@ class NicExample2Bbox(dw: Int = 32, aw: Int = 32)
     IO(Master(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).rtlConnector(toggleCase = true))).suggestName("m00_axi")
 
   override def desiredName = "NicExample2"
-  addResource("AxiIORtlConnectorSpec/NicExample2.sv")
+  addResource("amba/NicExample2.sv")
 }
 
 class AxiLiteIORtlConnectorSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
