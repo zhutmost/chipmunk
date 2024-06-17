@@ -1,4 +1,4 @@
-name: github-dependency-graph
+name: GitHub Dependency Graph
 
 on:
   workflow_dispatch:

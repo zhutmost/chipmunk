@@ -21,6 +21,9 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Setup Mill
+        uses: zhutmost/setup-mill@v1
+
       - name: Check formatting
         run:
           ./mill -i __.checkFormat
@@ -39,6 +42,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+
+      - name: Setup Mill
+        uses: zhutmost/setup-mill@v1
 
       - name: Run tests
         run:
