@@ -22,5 +22,8 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Setup Mill
+        uses: zhutmost/setup-mill@main
+
       - name: Submit Dependency Graph
         uses: ckipp01/mill-dependency-submission@v1

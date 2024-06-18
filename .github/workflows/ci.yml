@@ -2,8 +2,10 @@ name: Continuous Integration
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0'
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   code-check:
@@ -22,11 +24,11 @@ jobs:
           java-version: '21'
 
       - name: Setup Mill
-        uses: zhutmost/setup-mill@v1
+        uses: zhutmost/setup-mill@main
 
       - name: Check formatting
         run:
-          ./mill -i __.checkFormat
+          mill -i __.checkFormat
 
   test:
     runs-on: ubuntu-latest
@@ -44,8 +46,8 @@ jobs:
           java-version: '21'
 
       - name: Setup Mill
-        uses: zhutmost/setup-mill@v1
+        uses: zhutmost/setup-mill@main
 
       - name: Run tests
         run:
-          ./mill -i __.test
+          mill -i __.test
