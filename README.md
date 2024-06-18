@@ -2,6 +2,8 @@
 
 # 🐿️ CHIPMUNK: Enhance CHISEL for Smooth and Comfortable Chip Design
 
+![Build & Test](https://github.com/zhutmost/chipmunk/actions/workflows/ci.yml/badge.svg?branch=main)
+
 CHIPMUNK is a Scala package to extend the functionality of [CHISEL](https://chisel-lang.org). It features:
 - Extra convenient methods for CHISEL's built-in types,
 - Several syntactic sugar to sweeten your CHISEL experience,
