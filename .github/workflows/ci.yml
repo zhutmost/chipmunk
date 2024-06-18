@@ -9,7 +9,7 @@ on:
 
 jobs:
   code-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,10 +31,16 @@ jobs:
           mill -i __.checkFormat
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install Verilator
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: verilator
+          version: 1.0
 
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v6

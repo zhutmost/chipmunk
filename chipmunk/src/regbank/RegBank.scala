@@ -176,7 +176,7 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
 
   io.access.wr.resp.bits.error := wrRespStatus
   io.access.rd.resp.bits.error := rdRespStatus
-  io.access.rd.resp.bits.rdata  := rdRespData
+  io.access.rd.resp.bits.rdata := rdRespData
 
   for (idxElem <- regs.indices) {
     val elemConfig   = regs(idxElem)

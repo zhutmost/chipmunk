@@ -40,9 +40,9 @@ class AcornSpToDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, outstanding: I
   val respMuxWr = Wire(Stream(io.sAcornS.resp.bits))
   val respMuxRd = Wire(Stream(io.sAcornS.resp.bits))
   val respMux   = StreamMux(select = selectPop, ins = VecInit(respMuxWr, respMuxRd))
-  respMuxWr.bits.rdata  := 0.U
+  respMuxWr.bits.rdata := 0.U
   respMuxWr.bits.error := io.mAcornD.wr.resp.bits.error
-  respMuxRd.bits.rdata  := io.mAcornD.rd.resp.bits.rdata
+  respMuxRd.bits.rdata := io.mAcornD.rd.resp.bits.rdata
   respMuxRd.bits.error := io.mAcornD.rd.resp.bits.error
 
   io.sAcornS.resp << respMux

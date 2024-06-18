@@ -44,6 +44,6 @@ class AcornDpToAxiLiteBridge(dataWidth: Int = 32, addrWidth: Int = 32) extends M
   io.mAxiL.ar.bits.prot := 0.U
 
   io.sAcornD.rd.resp handshakeFrom io.mAxiL.r
-  io.sAcornD.rd.resp.bits.rdata  := io.mAxiL.r.bits.data
+  io.sAcornD.rd.resp.bits.rdata := io.mAxiL.r.bits.data
   io.sAcornD.rd.resp.bits.error := io.mAxiL.r.bits.resp =/= AxiResp.RESP_OKAY
 }
