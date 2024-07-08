@@ -342,25 +342,25 @@ class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave
   }
 
   /** Delay the StreamIO by a fixed number of cycles.
-   *
-   * @param cycles
-   * The number of cycles to delay.
-   * @return
-   * The result StreamIO.
-   */
+    *
+    * @param cycles
+    *   The number of cycles to delay.
+    * @return
+    *   The result StreamIO.
+    */
   def delayFixed(cycles: Int): StreamIO[T] = {
     StreamDelay.fixed(this, cycles)
   }
 
   /** Delay the StreamIO by a random number of cycles.
-   *
-   * @param maxCycles
-   * The maximum number of cycles to delay.
-   * @param minCycles
-   * The minimum number of cycles to delay.
-   * @return
-   * The result StreamIO.
-   */
+    *
+    * @param maxCycles
+    *   The maximum number of cycles to delay.
+    * @param minCycles
+    *   The minimum number of cycles to delay.
+    * @return
+    *   The result StreamIO.
+    */
   def delayRandom(maxCycles: Int, minCycles: Int = 0): StreamIO[T] = {
     StreamDelay.random(this, maxCycles, minCycles)
   }
