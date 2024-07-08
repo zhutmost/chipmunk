@@ -2,7 +2,7 @@ package chipmunk
 package stream
 
 import chisel3._
-import chisel3.experimental.{requireIsHardware, requireIsChiselType}
+import chisel3.experimental.{requireIsChiselType, requireIsHardware}
 import chisel3.util._
 
 class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave {
@@ -339,6 +339,30 @@ class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave
   def queue(queueSize: Int, queueFlow: Boolean, queuePipe: Boolean): StreamIO[T] = {
     val q = Queue(this, entries = queueSize, pipe = queueFlow, flow = queuePipe, useSyncReadMem = true)
     q.toStream
+  }
+
+  /** Delay the StreamIO by a fixed number of cycles.
+   *
+   * @param cycles
+   * The number of cycles to delay.
+   * @return
+   * The result StreamIO.
+   */
+  def delayFixed(cycles: Int): StreamIO[T] = {
+    StreamDelay.fixed(this, cycles)
+  }
+
+  /** Delay the StreamIO by a random number of cycles.
+   *
+   * @param maxCycles
+   * The maximum number of cycles to delay.
+   * @param minCycles
+   * The minimum number of cycles to delay.
+   * @return
+   * The result StreamIO.
+   */
+  def delayRandom(maxCycles: Int, minCycles: Int = 0): StreamIO[T] = {
+    StreamDelay.random(this, maxCycles, minCycles)
   }
 }
 
