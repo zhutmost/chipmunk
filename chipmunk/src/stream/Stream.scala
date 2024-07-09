@@ -257,7 +257,14 @@ class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave
   }
 
   /** Alias of [[pipeForward]]. */
-  def stage(): StreamIO[T] = pipeForward()
+  def stage(n: Int = 1): StreamIO[T] = {
+    require(n >= 0, "The stage number must be greater than or equal to 0.")
+    var ret = this
+    for (_ <- 0 until n) {
+      ret = ret.pipeForward()
+    }
+    ret
+  }
 
   /** Block this stream when `cond` is False. */
   def continueWhen(cond: => Bool): StreamIO[T] = {

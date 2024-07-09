@@ -124,7 +124,14 @@ class FlowIO[T <: Data](gen: T) extends Valid[T](gen) with IsMasterSlave {
   }
 
   /** Alias of [[pipeForward]]. */
-  def stage(): FlowIO[T] = pipeForward()
+  def stage(n: Int = 1): FlowIO[T] = {
+    require(n >= 0, "The stage number must be greater than or equal to 0.")
+    var ret = this
+    for (_ <- 0 until n) {
+      ret = ret.pipeForward()
+    }
+    ret
+  }
 
   /** Throw transactions when `cond` is False. */
   def takeWhen(cond: Bool): FlowIO[T] = {
