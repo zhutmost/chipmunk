@@ -28,7 +28,7 @@ class StreamDemux[T <: Data](dataType: T, num: Int) extends Module {
     val outs   = Vec(num, Master(Stream(dataType)))
 
     def createSelectStream(): StreamIO[UInt] = {
-      val stream  = Wire(Stream(select.cloneType))
+      val stream  = Wire(Stream(UInt(log2Ceil(num).W)))
       val regFlow = stream.haltWhen(in.isPending).toFlow(readyFreeRun = true)
       select := RegEnable(regFlow.bits, 0.U, regFlow.fire)
       stream

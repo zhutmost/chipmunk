@@ -344,7 +344,7 @@ class StreamIO[T <: Data](gen: T) extends DecoupledIO[T](gen) with IsMasterSlave
     *   The pop StreamIO of the queue.
     */
   def queue(queueSize: Int, queueFlow: Boolean, queuePipe: Boolean): StreamIO[T] = {
-    val q = Queue(this, entries = queueSize, pipe = queueFlow, flow = queuePipe, useSyncReadMem = true)
+    val q: DecoupledIO[T] = Queue(this, entries = queueSize, pipe = queueFlow, flow = queuePipe, useSyncReadMem = true)
     q.toStream
   }
 
@@ -379,7 +379,7 @@ object Stream {
   def apply[T <: Data](gen: T) = new StreamIO(gen)
 
   /** Returns a [[StreamIO]] interface with no payload. */
-  def apply(): StreamIO[Data] = new StreamIO(new EmptyBundle)
+  def apply(): StreamIO[EmptyBundle] = new StreamIO(new EmptyBundle)
 
   /** Returns a [[StreamIO]] interface with no payload. */
   def empty: StreamIO[EmptyBundle] = new StreamIO(new EmptyBundle)
