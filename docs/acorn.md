@@ -6,14 +6,14 @@ Acorn Bus 的信号定义分为两部分：Command 通道和 Response 通道。C
 
 ```mermaid
 sequenceDiagram
-    participant Master
-    participant Slave
-    Master->>+Slave: Command 0
-    Slave-->>-Master: Response 0
-    Master->>+Slave: Command 1
-    Master->>+Slave: Command 2
-    Slave-->>-Master: Response 1
-    Slave-->>-Master: Response 2
+    participant M as Master
+    participant S as Slave
+    M ->> S: Command 0
+    S -->> M: Response 0
+    M ->> S: Command 1
+    M ->> S: Command 2
+    S -->> M: Response 1
+    S -->> M: Response 2
 ```
 
 Acorn Bus 有两种变体：Sp (Single Port) 和 Dp (Double Port)。主要的区别是，Acorn Sp Bus 是读写共用 Command 和 Response 通道的，而 Acorn Dp Bus 是读写分离的，即读和写有各自独立的 Command 和 Response 通道。
@@ -39,12 +39,12 @@ Acorn Bus 有两种变体：Sp (Single Port) 和 Dp (Double Port)。主要的区
 
 #### Response Channel (`resp`)
 
-| Signal   | Direction | Bit Width      | Description                                                       |
-|----------|-----------|----------------|-------------------------------------------------------------------|
-| `rdata`  | Output    | DATA_WIDTH     | The readout data. (valid only when the corresponding `read` is 1) |
-| `status` | Output    | 1              | The access status of the current command. (1: success, 0: fail)   |
-| `valid`  | Output    | 1              | The valid signal of the response channel.                         |
-| `ready`  | Input     | 1              | The ready signal of the response channel.                         |
+| Signal  | Direction | Bit Width  | Description                                                       |
+|---------|-----------|------------|-------------------------------------------------------------------|
+| `rdata` | Output    | DATA_WIDTH | The readout data. (valid only when the corresponding `read` is 1) |
+| `error` | Output    | 1          | Whether the operation is successfully done.                       |
+| `valid` | Output    | 1          | The valid signal of the response channel.                         |
+| `ready` | Input     | 1          | The ready signal of the response channel.                         |
 
 ### 传输时序
 
@@ -68,7 +68,7 @@ Acorn Dp Bus 和 Sp 的主要区别是读写分离，因此除了信号定义之
 
 ### 信号定义
 
-#### Write Command Channel (`wr_cmd`)
+#### Write Command Channel (`wr.cmd`)
 
 | Signal  | Direction | Bit Width      | Description                              |
 |---------|-----------|----------------|------------------------------------------|
@@ -78,15 +78,15 @@ Acorn Dp Bus 和 Sp 的主要区别是读写分离，因此除了信号定义之
 | `valid` | Output    | 1              | The valid signal of the command channel. |
 | `ready` | Input     | 1              | The ready signal of the command channel. |
 
-#### Write Response Channel (`wr_resp`)
+#### Write Response Channel (`wr.resp`)
 
-| Signal   | Direction | Bit Width      | Description                                                       |
-|----------|-----------|----------------|-------------------------------------------------------------------|
-| `status` | Output    | 1              | The access status of the current command. (1: success, 0: fail)   |
-| `valid`  | Output    | 1              | The valid signal of the response channel.                         |
-| `ready`  | Input     | 1              | The ready signal of the response channel.                         |
+| Signal  | Direction | Bit Width | Description                                 |
+|---------|-----------|-----------|---------------------------------------------|
+| `error` | Output    | 1         | Whether the operation is successfully done. |
+| `valid` | Output    | 1         | The valid signal of the response channel.   |
+| `ready` | Input     | 1         | The ready signal of the response channel.   |
 
-#### Read Command Channel (`rd_cmd`)
+#### Read Command Channel (`rd.cmd`)
 
 | Signal  | Direction | Bit Width  | Description                              |
 |---------|-----------|------------|------------------------------------------|
@@ -94,14 +94,14 @@ Acorn Dp Bus 和 Sp 的主要区别是读写分离，因此除了信号定义之
 | `valid` | Output    | 1          | The valid signal of the command channel. |
 | `ready` | Input     | 1          | The ready signal of the command channel. |
 
-#### Read Response Channel (`rd_resp`)
+#### Read Response Channel (`rd.resp`)
 
-| Signal   | Direction | Bit Width  | Description                                                     |
-|----------|-----------|------------|-----------------------------------------------------------------|
-| `rdata`  | Output    | DATA_WIDTH | The readout data.                                               |
-| `status` | Output    | 1          | The access status of the current command. (1: success, 0: fail) |
-| `valid`  | Output    | 1          | The valid signal of the response channel.                       |
-| `ready`  | Input     | 1          | The ready signal of the response channel.                       |
+| Signal  | Direction | Bit Width  | Description                                 |
+|---------|-----------|------------|---------------------------------------------|
+| `rdata` | Output    | DATA_WIDTH | The readout data.                           |
+| `error` | Output    | 1          | Whether the operation is successfully done. |
+| `valid` | Output    | 1          | The valid signal of the response channel.   |
+| `ready` | Input     | 1          | The ready signal of the response channel.   |
 
 ## 在 Chipmunk 中的实现
 
