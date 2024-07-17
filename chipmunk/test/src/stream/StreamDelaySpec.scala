@@ -99,7 +99,6 @@ class StreamDelaySpec extends ChipmunkFlatSpec with VerilatorTestRunner {
           dut.clock.step()
         }
         assert(outValids.count(_ == true) == 1) // outValids is one-hot and has only one true
-        println(outValids)
         dut.clock.step()
       }
     }
