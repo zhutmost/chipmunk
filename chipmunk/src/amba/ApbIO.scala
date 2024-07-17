@@ -40,8 +40,12 @@ private[amba] abstract class ApbIOBase(
   *   The bit width of the bus address.
   */
 class Apb3IO(dataWidth: Int, addrWidth: Int) extends ApbIOBase(dataWidth, addrWidth) {
-  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
-    new ApbIORtlConnector(dataWidth, addrWidth)(postfix, toggleCase)
+  def rtlConnector(
+    postfix: Option[String] = None,
+    toggleCase: Boolean = false,
+    overrideNames: Map[String, String] = Map.empty
+  ) = {
+    new ApbIORtlConnector(dataWidth, addrWidth)(postfix, toggleCase, overrideNames)
   }
 }
 
@@ -58,7 +62,12 @@ class Apb3IO(dataWidth: Int, addrWidth: Int) extends ApbIOBase(dataWidth, addrWi
   */
 class Apb4IO(dataWidth: Int, addrWidth: Int, hasProt: Boolean = false, hasStrb: Boolean = false)
     extends ApbIOBase(dataWidth, addrWidth, hasProt, hasStrb) {
-  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
-    new ApbIORtlConnector(dataWidth, addrWidth, hasProt, hasStrb)(postfix, toggleCase)
+  def rtlConnector(
+    postfix: Option[String] = None,
+    toggleCase: Boolean = false,
+    overrideNames: Map[String, String] = Map.empty
+  ) = {
+    new ApbIORtlConnector(dataWidth, addrWidth, hasProt, hasStrb)(postfix, toggleCase, overrideNames)
   }
+
 }

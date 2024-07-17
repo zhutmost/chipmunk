@@ -21,7 +21,7 @@ module NicExample3 #(
     output var logic [S00_DW-1 : 0] s00_prdata,
 
     output var logic [M00_AW-1 : 0] m00_paddr,
-    output var logic [3 : 0]        m00_pselx,
+    output var logic [3 : 0]        m00_psel,
     output var logic                m00_penable,
     output var logic                m00_pwrite,
     output var logic [M00_DW-1 : 0] m00_pwdata,
@@ -32,7 +32,7 @@ module NicExample3 #(
 
     always_comb begin
         m00_paddr = s00_paddr;
-        m00_pselx = s00_pselx;
+        m00_psel = s00_pselx;
         m00_penable = s00_penable;
         m00_pwrite = s00_pwrite;
         m00_pwdata = s00_pwdata;

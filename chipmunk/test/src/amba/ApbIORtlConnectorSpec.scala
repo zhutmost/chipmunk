@@ -20,7 +20,12 @@ class NicExample3Bbox(dw: Int = 32, aw: Int = 32)
       Slave(new Apb4IO(dataWidth = dw, addrWidth = aw, hasProt = true, hasStrb = true).rtlConnector(toggleCase = true))
     ).suggestName("s00")
   val m0 =
-    IO(Master(new Apb3IO(dataWidth = dw, addrWidth = aw).rtlConnector(toggleCase = true))).suggestName("m00")
+    IO(
+      Master(
+        new Apb3IO(dataWidth = dw, addrWidth = aw)
+          .rtlConnector(toggleCase = true, overrideNames = Map("PSELX" -> "PSEL"))
+      )
+    ).suggestName("m00")
 
   override def desiredName = "NicExample3"
   addResource("amba/NicExample3.sv")

@@ -107,8 +107,12 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = fal
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 
-  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
-    new Axi4IORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(postfix, toggleCase)
+  def rtlConnector(
+    postfix: Option[String] = None,
+    toggleCase: Boolean = false,
+    overrideNames: Map[String, String] = Map.empty
+  ) = {
+    new Axi4IORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(postfix, toggleCase, overrideNames)
   }
 }
 
@@ -128,7 +132,11 @@ class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiIOBase(dat
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 
-  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
-    new Axi3IORtlConnector(dataWidth, addrWidth, idWidth)(postfix, toggleCase)
+  def rtlConnector(
+    postfix: Option[String] = None,
+    toggleCase: Boolean = false,
+    overrideNames: Map[String, String] = Map.empty
+  ) = {
+    new Axi3IORtlConnector(dataWidth, addrWidth, idWidth)(postfix, toggleCase, overrideNames)
   }
 }

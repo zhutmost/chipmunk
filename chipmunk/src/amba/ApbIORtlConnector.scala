@@ -9,8 +9,8 @@ class ApbIORtlConnector(
   val addrWidth: Int,
   val hasProt: Boolean = false,
   val hasStrb: Boolean = false
-)(postfix: Option[String] = None, toggleCase: Boolean = false)
-    extends RtlConnector(postfix, toggleCase)({
+)(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
+    extends RtlConnector(postfix, toggleCase, overrideNames)({
       val strobeWidth: Int = dataWidth / 8
       val axiPorts = Seq(
         "PADDR"   -> Output(UInt(addrWidth.W)),

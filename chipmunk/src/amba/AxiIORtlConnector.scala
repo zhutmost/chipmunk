@@ -34,13 +34,15 @@ import chisel3.experimental.dataview.DataView
   *   Whether the bus has QoS signals. Default is false.
   * @param hasRegion
   *   Whether the bus has region signals. Default is false.
+  * @param axi3
+  *   Whether the bus is AXI3. Default is false (i.e., AXI4).
   * @param postfix
   *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
   *   AWADDR_abc). Leave it None if you don't need it.
   * @param toggleCase
   *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
-  * @param axi3
-  *   Whether the bus is AXI3. Default is false (i.e., AXI4).
+  * @param overrideNames
+  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
   */
 private[amba] class AxiIORtlConnector(
   val dataWidth: Int,
@@ -48,10 +50,9 @@ private[amba] class AxiIORtlConnector(
   val idWidth: Int,
   val hasQos: Boolean = false,
   val hasRegion: Boolean = false,
-  postfix: Option[String] = None,
-  toggleCase: Boolean = false,
   axi3: Boolean = false
-) extends RtlConnector(postfix, toggleCase)({
+)(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
+    extends RtlConnector(postfix, toggleCase, overrideNames)({
       val strobeWidth: Int = dataWidth / 8
       val lockWidth: Int   = if (axi3) 2 else 1
       val lenWidth: Int    = if (axi3) 4 else 8
@@ -200,6 +201,8 @@ object AxiIORtlConnector {
   *   AWADDR_abc). Leave it None if you don't need it.
   * @param toggleCase
   *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
+  * @param overrideNames
+  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
   *
   * @see
   *   [[AxiIORtlConnector]]
@@ -210,8 +213,8 @@ class Axi4IORtlConnector(
   idWidth: Int,
   hasQos: Boolean = false,
   hasRegion: Boolean = false
-)(postfix: Option[String] = None, toggleCase: Boolean = false)
-    extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion, postfix, toggleCase)
+)(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
+    extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(postfix, toggleCase, overrideNames)
 
 /** Generate a [[Axi3IO]] interface with blackbox-friendly port names.
   *
@@ -234,11 +237,14 @@ class Axi4IORtlConnector(
   *   AWADDR_abc). Leave it None if you don't need it.
   * @param toggleCase
   *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
+  * @param overrideNames
+  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
   *
   * @see
   *   [[AxiIORtlConnector]]
   */
 class Axi3IORtlConnector(dataWidth: Int, addrWidth: Int, idWidth: Int)(
   postfix: Option[String] = None,
-  toggleCase: Boolean = false
-) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, postfix = postfix, toggleCase = toggleCase, axi3 = true)
+  toggleCase: Boolean = false,
+  overrideNames: Map[String, String] = Map.empty
+) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, axi3 = true)(postfix, toggleCase, overrideNames)

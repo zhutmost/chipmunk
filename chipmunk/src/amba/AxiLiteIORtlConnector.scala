@@ -23,11 +23,14 @@ import chisel3.experimental.dataview.DataView
   *   AWADDR_abc). Leave it None if you don't need it.
   * @param toggleCase
   *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
+  * @param overrideNames
+  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
   */
 class Axi4LiteIORtlConnector(val dataWidth: Int, val addrWidth: Int)(
   postfix: Option[String] = None,
-  toggleCase: Boolean = false
-) extends RtlConnector(postfix, toggleCase)(
+  toggleCase: Boolean = false,
+  overrideNames: Map[String, String] = Map.empty
+) extends RtlConnector(postfix, toggleCase, overrideNames)(
       "AWADDR"  -> Output(UInt(addrWidth.W)),
       "AWPROT"  -> Output(UInt(3.W)),
       "AWVALID" -> Output(Bool()),

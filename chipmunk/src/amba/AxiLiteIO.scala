@@ -66,7 +66,11 @@ class Axi4LiteIO(dataWidth: Int, addrWidth: Int) extends AxiLiteIOBase(dataWidth
   val ar = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val r  = Slave(Stream(new AxiLiteReadDataChannel(dataWidth)))
 
-  def rtlConnector(postfix: Option[String] = None, toggleCase: Boolean = false) = {
-    new Axi4LiteIORtlConnector(dataWidth, addrWidth)(postfix, toggleCase)
+  def rtlConnector(
+    postfix: Option[String] = None,
+    toggleCase: Boolean = false,
+    overrideNames: Map[String, String] = Map.empty
+  ) = {
+    new Axi4LiteIORtlConnector(dataWidth, addrWidth)(postfix, toggleCase, overrideNames)
   }
 }
