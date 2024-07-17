@@ -69,5 +69,4 @@ class Apb4IO(dataWidth: Int, addrWidth: Int, hasProt: Boolean = false, hasStrb: 
   ) = {
     new ApbIORtlConnector(dataWidth, addrWidth, hasProt, hasStrb)(postfix, toggleCase, overrideNames)
   }
-
 }
