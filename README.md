@@ -89,6 +89,32 @@ withClockAndReset(clock, reset) {
 }
 ```
 
+### Finite State Machine
+
+[View detailed document]()
+
+Code example:
+
+```scala
+val fsm = new StateMachine {
+  val s1 = new State with EntryPoint
+  val s2 = new State
+  s1
+    .whenIsActive {
+      when(io.a) {
+        goto(s2)
+      }
+    }
+  s2
+    .whenIsActive {
+      when(io.b) {
+        goto(s1)
+      }
+    }
+}
+io.out := fsm.isExiting(fsm.s2)
+```
+
 ### Asynchronous Reset Synchronous Dessert
 [View detailed document]()
 
