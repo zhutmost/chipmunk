@@ -133,12 +133,12 @@ class StateMachine extends StateMachineAccessor with DelayedInit {
 
   /** Returns whether this FSM is entering the specified state. */
   def isEntering(state: State): Bool = {
-    stateNext === stateToUInt(state) && stateCurr =/= stateNext
+    stateNext === stateToUInt(state) && stateCurr =/= stateToUInt(state)
   }
 
   /** Returns whether this FSM is exiting the specified state. */
   def isExiting(state: State): Bool = {
-    stateNext =/= stateToUInt(state) && stateCurr === stateNext
+    stateNext =/= stateToUInt(state) && stateCurr === stateToUInt(state)
   }
 
   def register(state: State): Unit = {
