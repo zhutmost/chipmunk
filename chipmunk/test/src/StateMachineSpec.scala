@@ -59,7 +59,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.clock.step()
       dut.io.state expect 0.U
       dut.io.a #= true.B
-      //      dut.io.bIsEntering expect true.B
+      dut.io.bIsEntering expect true.B
       dut.clock.step(2)
       dut.io.state expect 1.U
       dut.io.b #= true.B
@@ -71,7 +71,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.io.state expect 2.U
       dut.io.cIsActive expect true.B
       dut.io.c #= true.B
-      //      dut.io.cIsExiting expect true.B
+      dut.io.cIsExiting expect true.B
       dut.clock.step()
       dut.io.state expect 0.U
       dut.io.c #= false.B
