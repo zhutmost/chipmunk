@@ -29,23 +29,23 @@ class State(implicit sm: StateMachineAccessor) {
   private[chipmunk] val tasksWhenIsEntering = ListBuffer[() => Unit]()
   private[chipmunk] val tasksWhenIsExiting  = ListBuffer[() => Unit]()
 
-  def whenIsActive(doThat: => Unit): this.type = {
-    tasksWhenIsActive += (() => doThat)
+  def whenIsActive(body: => Unit): this.type = {
+    tasksWhenIsActive += (() => body)
     this
   }
 
-  def whenIsInactive(doThat: => Unit): this.type = {
-    tasksWhenIsInactive += (() => doThat)
+  def whenIsInactive(body: => Unit): this.type = {
+    tasksWhenIsInactive += (() => body)
     this
   }
 
-  def whenIsEntering(doThat: => Unit): this.type = {
-    tasksWhenIsEntering += (() => doThat)
+  def whenIsEntering(body: => Unit): this.type = {
+    tasksWhenIsEntering += (() => body)
     this
   }
 
-  def whenIsExiting(doThat: => Unit): this.type = {
-    tasksWhenIsExiting += (() => doThat)
+  def whenIsExiting(body: => Unit): this.type = {
+    tasksWhenIsExiting += (() => body)
     this
   }
 
@@ -57,11 +57,44 @@ class State(implicit sm: StateMachineAccessor) {
   */
 final class StateEntryPoint(implicit sm: StateMachineAccessor) extends State with EntryPoint
 
+/** Provides the finite state machine ([[StateMachine]], FSM) APIs visible to its states. */
 private[chipmunk] trait StateMachineAccessor {
   def register(state: State): Unit
 }
 
+object Sequential extends StateMachineEncoding {
+  def encode(index: Int): Int = index
+
+  def stateToUInt(states: List[State]): Map[State, UInt] = {
+    states.zipWithIndex.map { case (state, index) => state -> encode(index).U }.toMap
+  }
+}
+
+object OneHot extends StateMachineEncoding {
+  def encode(idx: Int): Int = 1 << idx
+
+  def stateToUInt(states: List[State]): Map[State, UInt] = {
+    states.zipWithIndex.map { case (state, index) => state -> encode(index).U }.toMap
+  }
+}
+
+object Gray extends StateMachineEncoding {
+  def encode(idx: Int): Int = idx ^ (idx >> 1)
+
+  def stateToUInt(states: List[State]): Map[State, UInt] = {
+    states.zipWithIndex.map { case (state, index) => state -> encode(index).U }.toMap
+  }
+}
+
+abstract class StateMachineEncoding {
+  def stateToUInt(states: List[State]): Map[State, UInt]
+}
+
 /** Finite state machine (FSM).
+  *
+  * @param autoStart
+  *   Whether the FSM should automatically start (i.e., transit to the entry point state) when the reset is de-asserted.
+  *   The default value is true.
   *
   * @note
   *   Each FSM should have one and only one entry point state ([[StateEntryPoint]]).
@@ -98,12 +131,25 @@ private[chipmunk] trait StateMachineAccessor {
   *   [[State]]
   */
 @nowarn("""cat=deprecation&origin=scala\.DelayedInit""")
-class StateMachine extends StateMachineAccessor with DelayedInit {
+class StateMachine(val autoStart: Boolean = true, defaultEncoding: StateMachineEncoding = Sequential)
+    extends StateMachineAccessor
+    with DelayedInit {
   implicit val implicitFsm: StateMachine = this
 
+  // When a State is instantiated, it will call register() to add itself to statesBuffer.
   private val statesBuffer = ListBuffer[State]()
 
   def states: List[State] = statesBuffer.toList
+
+  // The default state when the FSM is reset. The FSM will transit from this state to the entry point when startFsm() is
+  // called.
+  val stateBoot: State = new State {
+    if (autoStart) {
+      whenIsActive {
+        startFsm()
+      }
+    }
+  }
 
   def stateEntry: State = {
     val entries = states.filter(_.isInstanceOf[EntryPoint])
@@ -141,8 +187,19 @@ class StateMachine extends StateMachineAccessor with DelayedInit {
     stateNext =/= stateToUInt(state) && stateCurr === stateToUInt(state)
   }
 
+  /** Add a state to the FSM. This method is automatically called by the constructor of [[State]]. */
   def register(state: State): Unit = {
     statesBuffer += state
+  }
+
+  /** Transit to the entry point state. */
+  def startFsm(): Unit = {
+    goto(stateEntry)
+  }
+
+  /** Transit back to the BOOT state. */
+  def finishFsm(): Unit = {
+    goto(stateBoot)
   }
 
   private var isGenerated: Boolean = false
@@ -152,12 +209,12 @@ class StateMachine extends StateMachineAccessor with DelayedInit {
 
     // TODO: It is a workaround to avoid FSM generating before States are ready.
     //       I don't know why the delayedInit is called multiple times.
-    if (states.isEmpty || isGenerated) return
+    if (states.length <= 1 || isGenerated) return
     isGenerated = true
 
-    stateToUInt = states.zipWithIndex.map { case (state, index) => state -> index.U }.toMap
+    stateToUInt = defaultEncoding.stateToUInt(states)
 
-    stateCurr := RegNext(stateNext, stateToUInt(stateEntry))
+    stateCurr := RegNext(stateNext, stateToUInt(stateBoot))
     stateNext := stateCurr
 
     for (state <- states) {
