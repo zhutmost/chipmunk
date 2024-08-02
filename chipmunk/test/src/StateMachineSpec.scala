@@ -149,4 +149,40 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.io.state expect "b10".U
     }
   }
+
+  it should "allow encode FSM states with user-specified state ids" in {
+    val compiled = compile(new Module {
+      val io = IO(new Bundle {
+        val state = Output(UInt())
+      })
+      val fsm = new StateMachine {
+        val sA = new State(2.U) with EntryPoint
+        val sB = new State
+        val sC = new State(18.U)
+        sA.whenIsActive {
+          goto(sB)
+        }
+        sB.whenIsActive {
+          goto(sC)
+        }
+        sC.whenIsActive {
+          goto(sA)
+        }
+      }
+      io.state := fsm.stateCurr
+    })
+    compiled.runSim { dut =>
+      import TestRunnerUtils._
+      dut.reset #= true.B
+      dut.clock.step(5)
+      dut.reset #= false.B
+      dut.io.state expect 0.U // BOOT
+      dut.clock.step()
+      dut.io.state expect 2.U // sA
+      dut.clock.step()
+      dut.io.state expect 1.U // sB
+      dut.clock.step()
+      dut.io.state expect 18.U // sC
+    }
+  }
 }

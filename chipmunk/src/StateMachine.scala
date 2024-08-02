@@ -17,13 +17,21 @@ trait EntryPoint extends State
 
 /** State in a finite state machine (FSM, [[StateMachine]]).
   *
+  * @param id
+  *   The user-defined encoding of this state. The default value is null (If so, it is determined by
+  *   [[StateMachine.defaultEncoding]]).
+  *
   * @param sm
   *   The FSM that this state belongs to. It is implicitly passed by the host FSM.
   *
   * @see
   *   [[StateMachine]]
   */
-class State(implicit sm: StateMachineAccessor) {
+class State(val id: UInt = null)(implicit sm: StateMachineAccessor) {
+  if (id != null) {
+    require(id.litOption.isDefined, "The id of a state should be a hardware literal.")
+  }
+
   private[chipmunk] val tasksWhenIsActive   = ListBuffer[() => Unit]()
   private[chipmunk] val tasksWhenIsInactive = ListBuffer[() => Unit]()
   private[chipmunk] val tasksWhenIsEntering = ListBuffer[() => Unit]()
@@ -64,33 +72,56 @@ private[chipmunk] trait StateMachineAccessor {
 
 object Sequential extends StateMachineEncoding {
   def encode(index: Int): Int = index
-
-  def stateToUInt(states: List[State]): Map[State, UInt] = {
-    states.zipWithIndex.map { case (state, index) => state -> encode(index).U }.toMap
-  }
 }
 
 object OneHot extends StateMachineEncoding {
-  def encode(idx: Int): Int = 1 << idx
-
-  def stateToUInt(states: List[State]): Map[State, UInt] = {
-    states.zipWithIndex.map { case (state, index) => state -> encode(index).U }.toMap
-  }
+  def encode(index: Int): Int = 1 << index
 }
 
 object Gray extends StateMachineEncoding {
-  def encode(idx: Int): Int = idx ^ (idx >> 1)
+  def encode(index: Int): Int = index ^ (index >> 1)
 
-  def stateToUInt(states: List[State]): Map[State, UInt] = {
-    states.zipWithIndex.map { case (state, index) => state -> encode(index).U }.toMap
+  override def stateToUInt(states: List[State]): Map[State, UInt] = {
+    states.zipWithIndex.map { case (state, index) =>
+      require(state.id == null, "Gray encoding does not support user-defined state id.")
+      state -> encode(index).U
+    }.toMap
   }
 }
 
 abstract class StateMachineEncoding {
-  def stateToUInt(states: List[State]): Map[State, UInt]
+  def encode(index: Int): Int
+
+  def stateToUInt(states: List[State]): Map[State, UInt] = {
+    val userForcedIds = states.zipWithIndex
+      .filter(_._1.id != null)
+      .map { case (state, index) =>
+        index -> state.id.litOption.get.toInt
+      }
+      .toMap
+    var j = 0
+    states.zipWithIndex.map { case (state, index) =>
+      val id: Int = userForcedIds.get(index) match {
+        case Some(id) => id
+        case None =>
+          var id = 0
+          while ({
+            id = encode(j)
+            j += 1
+            userForcedIds.values.toList.contains(id)
+          }) {}
+          id
+      }
+      state -> id.U
+    }.toMap
+  }
 }
 
 /** Finite state machine (FSM).
+  *
+  * @param defaultEncoding
+  *   The default state encoding (The binary values of the states) of the FSM states. The default value is
+  *   [[Sequential]].
   *
   * @param autoStart
   *   Whether the FSM should automatically start (i.e., transit to the entry point state) when the reset is de-asserted.
@@ -131,7 +162,7 @@ abstract class StateMachineEncoding {
   *   [[State]]
   */
 @nowarn("""cat=deprecation&origin=scala\.DelayedInit""")
-class StateMachine(val autoStart: Boolean = true, defaultEncoding: StateMachineEncoding = Sequential)
+class StateMachine(defaultEncoding: StateMachineEncoding = Sequential, val autoStart: Boolean = true)
     extends StateMachineAccessor
     with DelayedInit {
   implicit val implicitFsm: StateMachine = this
