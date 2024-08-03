@@ -57,39 +57,47 @@ class StreamDelay[T <: Data](gen: T, delayWidth: Int) extends Module {
   })
   io.out.bits := io.in.bits
 
-  object State extends ChiselEnum {
-    val sIdle, sCount, sPend = Value
-  }
-  val stateCurr = RegInit(State.sIdle)
-  val stateNext = WireDefault(stateCurr)
-  stateCurr := stateNext
+  val counterOverflow: Bool = Wire(Bool())
 
-  val counterInc: Bool      = stateCurr === State.sCount
-  val counterReset: Bool    = stateCurr === State.sIdle || stateNext === State.sPend
-  val counter: (UInt, Bool) = Counter(1 until (1 << delayWidth), enable = counterInc, reset = counterReset)
-  val counterOverflow: Bool = counter._1 === io.targetDelay - 1.U
-
-  io.targetDelayUpdate := stateCurr === State.sCount && counterOverflow
-
-  io.out.valid := stateCurr === State.sPend || (stateCurr === State.sIdle && io.targetDelay === 0.U && io.in.valid)
-  io.in.ready  := io.out.fire
-
-  when(stateCurr === State.sIdle) {
-    when(io.in.valid) {
-      stateNext := State.sCount
-      when(io.targetDelay === 0.U) {
-        stateNext := Mux(io.out.ready, State.sIdle, State.sPend)
-      }.elsewhen(io.targetDelay === 1.U) {
-        stateNext := State.sPend
+  val fsm = new StateMachine {
+    val sIdle  = new State with EntryPoint
+    val sCount = new State
+    val sPend  = new State
+    sIdle.whenIsActive {
+      when(io.in.valid) {
+        goto(sCount)
+        when(io.targetDelay === 0.U) {
+          when(io.out.ready) {
+            goto(sIdle)
+          }.otherwise {
+            goto(sPend)
+          }
+        }.elsewhen(io.targetDelay === 1.U) {
+          goto(sPend)
+        }
       }
     }
-  }.elsewhen(stateCurr === State.sCount) {
-    when(counterOverflow) {
-      stateNext := State.sPend
+    sCount.whenIsActive {
+      when(counterOverflow) {
+        goto(sPend)
+      }
     }
-  }.elsewhen(stateCurr === State.sPend) {
-    when(io.out.ready) {
-      stateNext := State.sIdle
+    sPend.whenIsActive {
+      when(io.out.ready) {
+        goto(sIdle)
+      }
     }
   }
+  import fsm.{sIdle, sCount, sPend}
+
+  val counterInc: Bool      = fsm.isActive(sCount)
+  val counterReset: Bool    = fsm.isActive(sIdle) || fsm.isEntering(sPend)
+  val counter: (UInt, Bool) = Counter(1 until (1 << delayWidth), enable = counterInc, reset = counterReset)
+  counterOverflow := counter._1 === io.targetDelay - 1.U
+
+  io.targetDelayUpdate := fsm.isActive(sCount) && counterOverflow
+
+  io.out.valid := fsm.isActive(sPend) || (fsm.isActive(sIdle) && io.targetDelay === 0.U && io.in.valid)
+  io.in.ready  := io.out.fire
+
 }
