@@ -6,7 +6,7 @@ import chisel3.util._
 
 object StreamArbiter {
   def roundRobin[T <: Data](ins: Seq[StreamIO[T]]): StreamIO[T] = {
-    val uArb = Module(new RRArbiter(ins.head.bits.cloneType, ins.length))
+    val uArb = Module(new RRArbiter(chiselTypeOf(ins.head.bits), ins.length))
     (uArb.io.in zip ins).foreach { x =>
       x._1.valid := x._2.valid
       x._1.bits  := x._2.bits
@@ -16,7 +16,7 @@ object StreamArbiter {
   }
 
   def lowerFirst[T <: Data](ins: Seq[StreamIO[T]]): StreamIO[T] = {
-    val uArb = Module(new Arbiter(ins.head.bits.cloneType, ins.length))
+    val uArb = Module(new Arbiter(chiselTypeOf(ins.head.bits), ins.length))
     (uArb.io.in zip ins).foreach { x =>
       x._1.valid := x._2.valid
       x._1.bits  := x._2.bits

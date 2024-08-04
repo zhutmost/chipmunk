@@ -10,7 +10,7 @@ object StreamDelay {
     if (cycles == 0) {
       in
     } else {
-      val uStreamDelay = Module(new StreamDelay(in.bits.cloneType, delayWidth = log2Ceil(cycles + 1)))
+      val uStreamDelay = Module(new StreamDelay(chiselTypeOf(in.bits), delayWidth = log2Ceil(cycles + 1)))
       uStreamDelay.io.in << in
       uStreamDelay.io.targetDelay := cycles.U
       uStreamDelay.io.out
@@ -23,7 +23,7 @@ object StreamDelay {
     if (maxCycles == minCycles) {
       fixed(in, maxCycles)
     } else {
-      val uStreamDelay = Module(new StreamDelay(in.bits.cloneType, log2Ceil(maxCycles + 1)))
+      val uStreamDelay = Module(new StreamDelay(chiselTypeOf(in.bits), log2Ceil(maxCycles + 1)))
 
       val randomDelayRange: Int = maxCycles - minCycles - 1
       val randomDelayWidth: Int = log2Ceil(randomDelayRange)
@@ -88,7 +88,7 @@ class StreamDelay[T <: Data](gen: T, delayWidth: Int) extends Module {
       }
     }
   }
-  import fsm.{sIdle, sCount, sPend}
+  import fsm.{sCount, sIdle, sPend}
 
   val counterInc: Bool      = fsm.isActive(sCount)
   val counterReset: Bool    = fsm.isActive(sIdle) || fsm.isEntering(sPend)
