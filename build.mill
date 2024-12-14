@@ -1,7 +1,9 @@
+package build
+
 import mill._
-import scalalib._
-import scalafmt._
-import publish._
+import mill.scalalib._
+import mill.scalalib.publish._
+import mill.scalalib.scalafmt._
 
 object Dependencies {
   val scalaVersion = "2.13.15"
@@ -16,18 +18,15 @@ object Dependencies {
 trait CommonModule extends ScalaModule with ScalafmtModule {
   override def scalaVersion = Dependencies.scalaVersion
 
-  override def scalacOptions = T {
-    super.scalacOptions() ++
-      Agg(
-        "-deprecation",
-        "-feature",
-        "-Xcheckinit",
-        "-Xfatal-warnings",
-        "-language:existentials",
-        "-language:higherKinds",
-        "-language:reflectiveCalls" // Required by Chisel
-      )
-  }
+  override def scalacOptions = super.scalacOptions() ++ Seq(
+    "-deprecation",
+    "-feature",
+    "-Xcheckinit",
+    "-Xfatal-warnings",
+    "-language:existentials",
+    "-language:higherKinds",
+    "-language:reflectiveCalls" // Required by Chisel
+  )
 
   override def ivyDeps             = Agg(Dependencies.chisel)
   override def scalacPluginIvyDeps = Agg(Dependencies.chiselPlugin)
