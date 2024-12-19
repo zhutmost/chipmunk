@@ -122,7 +122,7 @@ private[regbank] class RegField(val config: RegFieldConfig) extends Module {
     case RegFieldCollisionMode.ReadWriteBackdoor => Seq("read", "write", "backdoor", "default")
     case RegFieldCollisionMode.BackdoorWriteRead => Seq("backdoor", "write", "read", "default")
     case RegFieldCollisionMode.BackdoorReadWrite => Seq("backdoor", "read", "write", "default")
-    case _ => throw new IllegalArgumentException("Invalid collision mode")
+    case _                                       => throw new IllegalArgumentException("Invalid collision mode")
   }
 
   r := PriorityMux(dataNextChoicesPriority.flatMap(dataNextChoices(_).toList))
