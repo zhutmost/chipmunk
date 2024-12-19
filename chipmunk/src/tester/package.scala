@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.reflect.DataMirror
 import svsim._
 
-package object tester {
+package tester {
 
   /** An opaque class that can be passed to `Simulation.run` to get access to a `SimulatedModule` in the simulation
     * body.
@@ -72,6 +72,10 @@ package object tester {
       }
     }
   }
+
+}
+
+package object tester {
 
   private[tester] object AnySimulatedModule {
     private val dynamicVariable = new scala.util.DynamicVariable[Option[AnySimulatedModule]](None)
@@ -144,6 +148,7 @@ package object tester {
                 case ActualDirection.Output => Seq((element, ModuleInfo.Port(name, isGettable = true)))
                 case _                      => Seq()
               }
+            case _ => Seq()
           }
         }
         // Chisel ports can be Data or Property, but there is no ABI for Property ports, so we only return Data.

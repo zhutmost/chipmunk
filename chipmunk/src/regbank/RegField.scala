@@ -4,8 +4,8 @@ package regbank
 import stream.Flow
 
 import chisel3._
-import chisel3.util._
 import chisel3.experimental.requireIsHardware
+import chisel3.util._
 
 /** Collision priority of a [[RegField]]. It decides which value should be updated to the register field when multiple
   * update requests happen in a single cycle.
@@ -122,6 +122,7 @@ private[regbank] class RegField(val config: RegFieldConfig) extends Module {
     case RegFieldCollisionMode.ReadWriteBackdoor => Seq("read", "write", "backdoor", "default")
     case RegFieldCollisionMode.BackdoorWriteRead => Seq("backdoor", "write", "read", "default")
     case RegFieldCollisionMode.BackdoorReadWrite => Seq("backdoor", "read", "write", "default")
+    case _ => throw new IllegalArgumentException("Invalid collision mode")
   }
 
   r := PriorityMux(dataNextChoicesPriority.flatMap(dataNextChoices(_).toList))

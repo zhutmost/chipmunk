@@ -19,13 +19,32 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
   override def scalaVersion = Dependencies.scalaVersion
 
   override def scalacOptions = super.scalacOptions() ++ Seq(
-    "-deprecation",
-    "-feature",
-    "-Xcheckinit",
-    "-Xfatal-warnings",
-    "-language:existentials",
-    "-language:higherKinds",
-    "-language:reflectiveCalls" // Required by Chisel
+    "-deprecation", // Emit warning and location for usages of deprecated APIs.
+    "-explaintypes", // Explain type errors in more detail.
+    "-Werror", // Fail the compilation if there are any warnings.
+    "-feature", // Emit warning and location for usages of features that should be imported explicitly.
+    "-Xcheckinit", // Wrap field accessors to throw an exception on uninitialized access.
+    "-language:higherKinds", // Allow higher-kinded types
+    "-language:implicitConversions", // Allow definition of implicit functions called views
+    "-language:reflectiveCalls", // Allow reflective access to members of structural types
+    "-unchecked", // Enable additional warnings where generated code depends on assumptions.
+
+    "-Xlint:_",
+    "-Wdead-code", // Warn when dead code is identified.
+    "-Wextra-implicit", // Warn when more than one implicit parameter section is defined.
+    "-Wmacros:both", // Lints code before and after applying a macro
+    "-Wnumeric-widen", // Warn when numerics are widened.
+    "-Woctal-literal", // Warn on obsolete octal syntax.
+    "-Wunused:imports", // Warn if an import selector is not referenced.
+    "-Wunused:patvars", // Warn if a variable bound in a pattern is unused.
+    "-Wunused:privates", // Warn if a private member is unused.
+    "-Wunused:locals", // Warn if a local definition is unused.
+    "-Wunused:params", // Enable -Wunused:explicits,implicits.
+    "-Wunused:linted", // -Xlint:unused.
+
+    "-Ybackend-parallelism", "8", // Enable paralellisation — change to desired number!
+    "-Ycache-plugin-class-loader:last-modified", // Enables caching of classloaders for compiler plugins
+    "-Ycache-macro-class-loader:last-modified", // and macro definitions. This can lead to performance improvements.
   )
 
   override def ivyDeps             = Agg(Dependencies.chisel)

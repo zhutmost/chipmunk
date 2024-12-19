@@ -1,10 +1,13 @@
 import chisel3._
 import chisel3.util._
 
-package object chipmunk {
+package chipmunk {
 
   /** A Bundle with no elements. */
   final class EmptyBundle extends Bundle
+}
+
+package object chipmunk {
 
   implicit class AddMethodsToBits[T <: Bits](c: T) {
 

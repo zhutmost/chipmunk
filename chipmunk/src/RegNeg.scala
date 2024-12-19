@@ -1,7 +1,7 @@
 package chipmunk
 
 import chisel3._
-import chisel3.experimental.{requireIsChiselType, requireIsHardware}
+import chisel3.experimental.requireIsHardware
 import chisel3.util._
 
 private[chipmunk] class RegNegBbox(width: Int) extends BlackBox(Map("WIDTH" -> width)) with HasBlackBoxResource {
