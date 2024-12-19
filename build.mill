@@ -29,18 +29,14 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
     "-language:reflectiveCalls", // Allow reflective access to members of structural types
     "-unchecked", // Enable additional warnings where generated code depends on assumptions.
 
-    "-Xlint:_",
+    // Suppress DelayedInit warnings because it is still used by StateMachine.
+    "-Xlint:_,-delayedinit-select",
     "-Wdead-code", // Warn when dead code is identified.
     "-Wextra-implicit", // Warn when more than one implicit parameter section is defined.
     "-Wmacros:both", // Lints code before and after applying a macro
     "-Wnumeric-widen", // Warn when numerics are widened.
     "-Woctal-literal", // Warn on obsolete octal syntax.
-    "-Wunused:imports", // Warn if an import selector is not referenced.
-    "-Wunused:patvars", // Warn if a variable bound in a pattern is unused.
-    "-Wunused:privates", // Warn if a private member is unused.
-    "-Wunused:locals", // Warn if a local definition is unused.
-    "-Wunused:params", // Enable -Wunused:explicits,implicits.
-    "-Wunused:linted", // -Xlint:unused.
+    "-Wunused:_", // Warn when imports, local and private vals, vars, defs, and types are unused.
 
     "-Ybackend-parallelism", "8", // Enable paralellisation — change to desired number!
     "-Ycache-plugin-class-loader:last-modified", // Enables caching of classloaders for compiler plugins

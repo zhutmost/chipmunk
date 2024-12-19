@@ -26,9 +26,13 @@ jobs:
       - name: Setup Mill
         uses: zhutmost/setup-mill@main
 
+      - name: Check compilation
+        run:
+          mill __.compile
+
       - name: Check formatting
         run:
-          mill -i __.checkFormat
+          mill __.checkFormat
 
   test:
     runs-on: ubuntu-24.04
@@ -56,4 +60,4 @@ jobs:
 
       - name: Run tests
         run:
-          mill -i __.test
+          mill __.test
