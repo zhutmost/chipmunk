@@ -8,61 +8,77 @@ SPI Debugger 允许用户通过 SPI 接口访问片上总线，从而调试 SoC 
 
 SPI Debugger 内部寄存器定义如下：
 
-### BUS_ADDR_H (0x00)
+### `BUS_ADDR_H` (0x00)
 
 该寄存器仅当配置选项 `busAddrWidth` > 32 时才会存在，且只有其低 (`busAddrWidth`-32) bit 可被访问。
 
 其值与寄存器 `BUS_ADDR_L` 组合在一起作为总线访问地址（`wr/rd.cmd.bits.addr`）。
 
-![spi-debugger-reg-addrh](./assets/spi-debugger-reg-addrh.jpg)
+| Field        | Bit width | Bit slice | Access |
+|--------------|-----------|-----------|--------|
+| `BUS_ADDR_H` | 13        | 12:0      | R/W    |
 
-图中的例子是 `busAddrWidth` = 45 时的情况。
+表中的例子是 `busAddrWidth` = 45 时的情况。
 
 ### `BUS_ADDR_L` (0x01)
 
 当配置选项 `busAddrWidth` > 32 时，寄存器 `BUS_ADDR_L` 与该寄存器的值组合在一起作为总线访问地址；否则，该寄存器的低 `busAddrWidth` bit 作为总线访问地址（`wr/rd.cmd.bits.addr`）。
 
-![spi-debugger-reg-addrl](./assets/spi-debugger-reg-addrl.jpg)
+| Field        | Bit width | Bit slice | Access |
+|--------------|-----------|-----------|--------|
+| `BUS_ADDR_L` | 32        | 31:0      | R/W    |
 
 ### `BUS_WR_RESP` (`0x02`)
 
 读取该寄存器，其最低 bit 表示上一次总线写操作是否成功（`wr.resp.bits.status`），0 表示成功，1 表示有错误发生。
 
-写入该寄存器（无论写 1 或者 0），会发起一次总线写操作。
+| Field         | Bit width | Bit slice | Access |
+|---------------|-----------|-----------|--------|
+| `BUS_WR_RESP` | 1         | 0:0       | RO     |
 
-![spi-debugger-reg-wresp](./assets/spi-debugger-reg-resp.jpg)
+写入该寄存器（无论写 1 或者 0），会发起一次总线写操作。
 
 ### `BUS_RD_RESP` (`0x03`)
 
 读取该寄存器，其最低 bit 表示上一次总线读操作是否成功（`rd.resp.bits.status`），0 表示成功，1 表示有错误发生。
 
-写入该寄存器（无论写 1 或者 0），会发起一次总线读操作。
+| Field         | Bit width | Bit slice | Access |
+|---------------|-----------|-----------|--------|
+| `BUS_RD_RESP` | 1         | 0:0       | RO     |
 
-![spi-debugger-reg-rresp](./assets/spi-debugger-reg-resp.jpg)
+写入该寄存器（无论写 1 或者 0），会发起一次总线读操作。
 
 ### `BUS_WR_DATA` (`0x04`)
 
 该寄存器的值作为总线写操作的数据（`wr.cmd.bits.wdata`）。
 
-![spi-debugger-reg-rresp](./assets/spi-debugger-reg-data.jpg)
+| Field         | Bit width | Bit slice | Access |
+|---------------|-----------|-----------|--------|
+| `BUS_WR_DATA` | 32        | 31:0      | R/W    |
 
 ### `BUS_RD_DATA` (`0x05`)
 
 读取该寄存器，将返回上一次总线读操作的返回数据（`rd.resp.bits.rdata`）。
 
-![spi-debugger-reg-rresp](./assets/spi-debugger-reg-data.jpg)
+| Field         | Bit width | Bit slice | Access |
+|---------------|-----------|-----------|--------|
+| `BUS_RD_DATA` | 32        | 31:0      | R/W    |
 
 ### `BUS_WR_MASK` (`0x06`)
 
 该寄存器的值作为总线写操作的数据掩码（`wr.cmd.bits.wmask`）。
 
-![spi-debugger-reg-rresp](./assets/spi-debugger-reg-wmask.jpg)
+| Field         | Bit width | Bit slice | Access |
+|---------------|-----------|-----------|--------|
+| `BUS_WR_MASK` | 4         | 3:0       | R/W    |
 
 ### `TEST` (`0x3F`)
 
 该寄存器用于 SPI 的 Loopback 读写测试，其值对总线不会有任何影响。
 
-![spi-debugger-reg-test](./assets/spi-debugger-reg-test.jpg)
+| Field  | Bit width | Bit slice | Access |
+|--------|-----------|-----------|--------|
+| `TEST` | 32        | 31:0      | R/W    |
 
 ## SPI Command Sequences
 

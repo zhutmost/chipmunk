@@ -40,10 +40,10 @@ import chipmunk._
 
 ## Documentation
 
-CHIPMUNK documents are provided on [my blog](https://zhutmost.com/tags/Chipmunk/).
+CHIPMUNK documents are provided in the [docs folder](docs/README.md).
 
 ### Extra convenient Methods for Chisel types
-[View detailed document](https://zhutmost.com/Engineering/chipmunk-bits-misc)
+[View detailed document](docs/bits-misc)
 
 Code example:
 ```scala
@@ -57,7 +57,7 @@ val emptyStream = Decoupled(new EmptyBundle) // Bundle without elements
 ```
 
 ### Define Bundle Direction with Master/Slave
-[View detailed document](https://zhutmost.com/Engineering/chipmunk-master-slave)
+[View detailed document](docs/master-slave)
 
 Code example:
 ```scala
@@ -79,7 +79,7 @@ class AxiSlave extends Module {
 ```
 
 ### Registers triggered on the falling clock edge
-[View detailed document](https://zhutmost.com/Engineering/chipmunk-regneg)
+[View detailed document](docs/regneg)
 
 Code example:
 ```scala
@@ -163,8 +163,8 @@ Code example:
 TODO
 ```
 
-### Stream/Flow: Decouple Dataflow with Handshake
-[View detailed document](https://zhutmost.com/Engineering/chipmunk-stream)
+### StreamIO/FlowIO: Decouple Dataflow with Handshake
+[View detailed document](docs/stream)
 
 Code example:
 ```scala
