@@ -6,7 +6,7 @@ import mill.scalalib.publish._
 import mill.scalalib.scalafmt._
 
 object Dependencies {
-  val scalaVersion = "2.13.15"
+  val scalaVersion = "2.13.16"
 
   val chiselVersion = "6.6.0"
   val chisel        = ivy"org.chipsalliance::chisel:$chiselVersion"
