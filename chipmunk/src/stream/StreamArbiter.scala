@@ -4,9 +4,14 @@ package stream
 import chisel3._
 import chisel3.util._
 
+/** Wrapper of chisel's builtin RRArbiter, but its grant register has an initialized value. */
+private[chipmunk] class StreamArbiterRR[T <: Data](gen: T, n: Int) extends RRArbiter(gen, n) {
+  override lazy val lastGrant: UInt = RegEnable(io.chosen, 0.U, io.out.fire)
+}
+
 object StreamArbiter {
   def roundRobin[T <: Data](ins: Seq[StreamIO[T]]): StreamIO[T] = {
-    val uArb = Module(new RRArbiter(chiselTypeOf(ins.head.bits), ins.length))
+    val uArb = Module(new StreamArbiterRR(chiselTypeOf(ins.head.bits), ins.length))
     (uArb.io.in zip ins).foreach { x =>
       x._1.valid := x._2.valid
       x._1.bits  := x._2.bits
