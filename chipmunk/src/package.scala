@@ -57,4 +57,11 @@ package object chipmunk {
       chisel3.dontTouch(c)
     }
   }
+
+  /** Alias for [[chisel3.util.PriorityMux]].
+    *
+    * @note
+    *   Chisel has many muxes named `MuxXxx`, but this is the only one that is named as `XxxMux`.
+    */
+  val MuxPriority = PriorityMux
 }
