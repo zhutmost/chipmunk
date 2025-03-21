@@ -9,8 +9,8 @@ import chisel3.util._
 
 /** Chip debugger, which allows users to access the on-chip bus through SPI.
   *
-  * The bus access interface is a parameter-configurable [[AcornDpIO]] master interface. It can be connected to a AMBA
-  * AXI interconnect via [[AcornDpToAxiLiteBridge]].
+  * The bus access interface is a parameter-configurable [[AcornIO]] master interface. It can be connected to a AMBA AXI
+  * interconnect via [[AcornToAxiLiteBridge]].
   *
   * @param spiClockPriority
   *   Clock priority of SPI, also known as CPOL. If true, idle state of SCK is high, otherwise low.
@@ -30,7 +30,7 @@ class SpiDebugger(
 
   val io = IO(new Bundle {
     val sSpi = Slave(new SpiIO(hasMisoValid))
-    val mDbg = Master(new AcornDpIO(dataWidth = 32, addrWidth = busAddrWidth))
+    val mDbg = Master(new AcornIO(dataWidth = 32, addrWidth = busAddrWidth))
   })
 
   // ---------------------------------------------------------------------------
@@ -202,8 +202,8 @@ class SpiDebugger(
       RegElementConfig(
         "BUS_WR_MASK",
         addr = BUS_WR_MASK.litValue,
-        bitCount = io.mDbg.wr.cmd.bits.maskWidth,
-        initValue = ((2 << io.mDbg.wr.cmd.bits.maskWidth) - 1).U
+        bitCount = io.mDbg.strobeWidth,
+        initValue = ((2 << io.mDbg.strobeWidth) - 1).U
       ),
       RegElementConfig("TEST", addr = TEST.litValue, bitCount = 32, initValue = 0x3f1b_00e5.U(32.W))
     )
@@ -212,26 +212,26 @@ class SpiDebugger(
   val uSpiRegFile = Module(new RegBank(addrWidth = 6, dataWidth = 32, regs = regFileConfigs))
 
   // One-cycle command valid is enough, because response channel is always ready.
-  uSpiRegFile.io.access.wr.cmd.valid      := regFileWrEnable
-  uSpiRegFile.io.access.wr.cmd.bits.addr  := regFileWrAddr
-  uSpiRegFile.io.access.wr.cmd.bits.wdata := spiRxData
-  uSpiRegFile.io.access.wr.cmd.bits.wmask := Fill(32, true.B)
-  uSpiRegFile.io.access.wr.resp.ready     := true.B
+  uSpiRegFile.io.access.wr.cmd.valid       := regFileWrEnable
+  uSpiRegFile.io.access.wr.cmd.bits.addr   := regFileWrAddr
+  uSpiRegFile.io.access.wr.cmd.bits.data   := spiRxData
+  uSpiRegFile.io.access.wr.cmd.bits.strobe := Fill(32, true.B)
+  uSpiRegFile.io.access.wr.rsp.ready       := true.B
 
   uSpiRegFile.io.access.rd.cmd.valid     := true.B
   uSpiRegFile.io.access.rd.cmd.bits.addr := regFileRdAddr
-  uSpiRegFile.io.access.rd.resp.ready    := true.B
+  uSpiRegFile.io.access.rd.rsp.ready     := true.B
 
-  val regRdData = uSpiRegFile.io.access.rd.resp.bits.rdata
+  val regRdData = uSpiRegFile.io.access.rd.rsp.bits.data
 
-  uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.valid := io.mDbg.rd.resp.fire
-  uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.rdata
+  uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.valid := io.mDbg.rd.rsp.fire
+  uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.bits  := io.mDbg.rd.rsp.bits.data
 
-  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.valid := io.mDbg.wr.resp.fire
-  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.resp.bits.error.asUInt
+  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.valid := io.mDbg.wr.rsp.fire
+  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.rsp.bits.status.asUInt
 
-  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.valid := io.mDbg.rd.resp.fire
-  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.resp.bits.error.asUInt
+  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.valid := io.mDbg.rd.rsp.fire
+  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.rsp.bits.status.asUInt
 
   val busAddrBufUpdate = spiStateCntDone && spiStateCurr === SpiState.BUS_ADDR
   uSpiRegFile.io.fields("BUS_ADDR_L").backdoorUpdate.get.valid := busAddrBufUpdate
@@ -270,8 +270,8 @@ class SpiDebugger(
   io.mDbg.wr.cmd.valid := busWrReqValid
   io.mDbg.rd.cmd.valid := buRdReqValid
 
-  io.mDbg.wr.cmd.bits.wdata := uSpiRegFile.io.fields("BUS_WR_DATA").value
-  io.mDbg.wr.cmd.bits.wmask := uSpiRegFile.io.fields("BUS_WR_MASK").value
+  io.mDbg.wr.cmd.bits.data   := uSpiRegFile.io.fields("BUS_WR_DATA").value
+  io.mDbg.wr.cmd.bits.strobe := uSpiRegFile.io.fields("BUS_WR_MASK").value
 
   if (busAddrWidth > 32) {
     io.mDbg.wr.cmd.bits.addr := uSpiRegFile.io.fields("BUS_ADDR_H").value ## uSpiRegFile.io.fields("BUS_ADDR_L").value
@@ -281,8 +281,8 @@ class SpiDebugger(
     io.mDbg.rd.cmd.bits.addr := uSpiRegFile.io.fields("BUS_ADDR_L").value
   }
 
-  io.mDbg.wr.resp.ready := true.B
-  io.mDbg.rd.resp.ready := true.B
+  io.mDbg.wr.rsp.ready := true.B
+  io.mDbg.rd.rsp.ready := true.B
 
   // ---------------------------------------------------------------------------
   // SPI TX data

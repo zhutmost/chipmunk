@@ -14,7 +14,7 @@ class AxiLiteToAxi4Bridge(dataWidth: Int, addrWidth: Int, idWidth: Int, writeId:
   io.mAxi4.aw handshakeFrom io.sAxiL.aw
   io.mAxi4.aw.bits.addr  := io.sAxiL.aw.bits.addr
   io.mAxi4.aw.bits.prot  := io.sAxiL.aw.bits.prot
-  io.mAxi4.aw.bits.size  := AxiBurstSize(log2Ceil(io.sAxiL.dataWidthByteNum).U)
+  io.mAxi4.aw.bits.size  := AxiBurstSize(log2Ceil(io.sAxiL.strobeWidth).U)
   io.mAxi4.aw.bits.len   := 0.U
   io.mAxi4.aw.bits.burst := AxiBurstType.BURST_INCR
   io.mAxi4.aw.bits.lock  := 0.U
@@ -26,7 +26,7 @@ class AxiLiteToAxi4Bridge(dataWidth: Int, addrWidth: Int, idWidth: Int, writeId:
   io.mAxi4.ar handshakeFrom io.sAxiL.ar
   io.mAxi4.ar.bits.addr  := io.sAxiL.ar.bits.addr
   io.mAxi4.ar.bits.prot  := io.sAxiL.ar.bits.prot
-  io.mAxi4.ar.bits.size  := AxiBurstSize(log2Ceil(io.sAxiL.dataWidthByteNum).U)
+  io.mAxi4.ar.bits.size  := AxiBurstSize(log2Ceil(io.sAxiL.strobeWidth).U)
   io.mAxi4.ar.bits.len   := 0.U
   io.mAxi4.ar.bits.burst := AxiBurstType.BURST_INCR
   io.mAxi4.ar.bits.lock  := 0.U

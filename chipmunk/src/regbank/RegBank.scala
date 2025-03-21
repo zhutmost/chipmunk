@@ -1,12 +1,13 @@
 package chipmunk
 package regbank
 
-import component.acorn.AcornDpIO
+import amba.AxiResp
+import component.acorn.AcornIO
 
 import chisel3._
 import chisel3.util._
 
-/** Configuration of of a register element in [[RegBank]].
+/** Configuration of a register element in [[RegBank]].
   *
   * @param name
   *   Name of the register element. It should be unique in a [[RegBank]]. Only alphanumeric and underscore are allowed.
@@ -92,13 +93,13 @@ class RegBankFieldIO(regsConfig: Seq[RegElementConfig])
 /** Memory-mapped register bank.
   *
   * A register bank is a collection of register elements, which can be accessed through a memory-mapped interface
-  * [[AcornDpIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read (and
+  * [[AcornIO]]. Each register element can have multiple register fields [[RegField]]. These fields can be read (and
   * even updated) by a backdoor interface [[RegBankFieldIO]].
   *
   * @param addrWidth
-  *   Bit width of write/read address.
+  *   The bit width of write/read address.
   * @param dataWidth
-  *   Bit width of write/read data.
+  *   The bit width of write/read data.
   * @param regs
   *   The configuration of register elements in the register bank.
   * @example
@@ -130,40 +131,40 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
   val regsConfig = regs
 
   val io = IO(new Bundle {
-    val access = Slave(new AcornDpIO(dataWidth = dataWidth, addrWidth = addrWidth))
+    val access = Slave(new AcornIO(dataWidth = dataWidth, addrWidth = addrWidth))
     val fields = new RegBankFieldIO(regs)
   })
 
   val wrRespPending: Bool = RegInit(false.B)
   val rdRespPending: Bool = RegInit(false.B)
 
-  io.access.wr.cmd.ready  := io.access.wr.resp.fire || !wrRespPending
-  io.access.rd.cmd.ready  := io.access.rd.resp.fire || !rdRespPending
-  io.access.wr.resp.valid := wrRespPending
-  io.access.rd.resp.valid := rdRespPending
+  io.access.wr.cmd.ready := io.access.wr.rsp.fire || !wrRespPending
+  io.access.rd.cmd.ready := io.access.rd.rsp.fire || !rdRespPending
+  io.access.wr.rsp.valid := wrRespPending
+  io.access.rd.rsp.valid := rdRespPending
 
   val elemWrAddrHits = regs.map(io.access.wr.cmd.bits.addr === _.addr.U)
   val elemRdAddrHits = regs.map(io.access.rd.cmd.bits.addr === _.addr.U)
   val wrAddrNoMatch  = !elemWrAddrHits.reduce(_ || _)
   val rdAddrNoMatch  = !elemRdAddrHits.reduce(_ || _)
 
-  val wrRespStatus = RegInit(false.B)
-  val rdRespStatus = RegInit(false.B)
+  val wrRespStatus = RegInit(AxiResp.RESP_OKAY)
+  val rdRespStatus = RegInit(AxiResp.RESP_OKAY)
 
   when(io.access.wr.cmd.fire) {
     wrRespPending := true.B
-    wrRespStatus  := wrAddrNoMatch
-  }.elsewhen(io.access.wr.resp.fire) {
+    wrRespStatus  := Mux(wrAddrNoMatch, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
+  }.elsewhen(io.access.wr.rsp.fire) {
     wrRespPending := false.B
-    wrRespStatus  := false.B
+    wrRespStatus  := AxiResp.RESP_OKAY
   }
 
   when(io.access.rd.cmd.fire) {
     rdRespPending := true.B
-    rdRespStatus  := rdAddrNoMatch
-  }.elsewhen(io.access.rd.resp.fire) {
+    rdRespStatus  := Mux(rdAddrNoMatch, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
+  }.elsewhen(io.access.rd.rsp.fire) {
     rdRespPending := false.B
-    rdRespStatus  := false.B
+    rdRespStatus  := AxiResp.RESP_OKAY
   }
 
   val elemRdDatas = Wire(Vec(regs.length, UInt(dataWidth.W)))
@@ -174,16 +175,16 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
     rdRespData := rdDataNext
   }
 
-  io.access.wr.resp.bits.error := wrRespStatus
-  io.access.rd.resp.bits.error := rdRespStatus
-  io.access.rd.resp.bits.rdata := rdRespData
+  io.access.wr.rsp.bits.status := wrRespStatus
+  io.access.rd.rsp.bits.status := rdRespStatus
+  io.access.rd.rsp.bits.data   := rdRespData
 
   for (idxElem <- regs.indices) {
     val elemConfig   = regs(idxElem)
     val elemWrEnable = io.access.wr.cmd.fire && elemWrAddrHits(idxElem)
     val elemRdEnable = io.access.rd.cmd.fire && elemRdAddrHits(idxElem)
     val elemWrBitMask = {
-      val mask: UInt = io.access.wr.cmd.bits.wmask
+      val mask: UInt = io.access.wr.cmd.bits.strobe
       Cat(mask.asBools.reverse.flatMap(b => Seq.fill(8)(b)))
     }
 
@@ -193,7 +194,7 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
         val uField = Module(new RegField(fieldConfig))
         uField.io.frontdoor.wrEnable  := elemWrEnable
         uField.io.frontdoor.rdEnable  := elemRdEnable
-        uField.io.frontdoor.wrData    := io.access.wr.cmd.bits.wdata(fieldConfig.endOffset, fieldConfig.baseOffset)
+        uField.io.frontdoor.wrData    := io.access.wr.cmd.bits.data(fieldConfig.endOffset, fieldConfig.baseOffset)
         uField.io.frontdoor.wrBitMask := elemWrBitMask(fieldConfig.endOffset, fieldConfig.baseOffset)
 
         io.fields(s"${elemConfig.name}_${fieldConfig.name}") <> uField.io.backdoor

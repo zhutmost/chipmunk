@@ -2,13 +2,14 @@ package chipmunk
 package component.acorn
 
 import amba._
+
 import chisel3._
 import chisel3.util._
 
-class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int = 0) extends Module {
+class Axi4ToAcornBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int = 0) extends Module {
   val io = IO(new Bundle {
-    val sAxi4   = Slave(new Axi4IO(dataWidth = dataWidth, addrWidth = addrWidth, idWidth = idWidth))
-    val mAcornW = Master(new AcornDpIO(dataWidth = dataWidth, addrWidth = addrWidth))
+    val sAxi4  = Slave(new Axi4IO(dataWidth = dataWidth, addrWidth = addrWidth, idWidth = idWidth))
+    val mAcorn = Master(new AcornIO(dataWidth = dataWidth, addrWidth = addrWidth))
   })
 
   def burstAddrNext(addr: UInt, burst: AxiBurstType.Type, len: UInt): UInt = {
@@ -17,13 +18,13 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
       Seq(
         AxiBurstType.BURST_FIXED -> addr,
         AxiBurstType.BURST_INCR -> {
-          addr + io.sAxi4.dataWidthByteNum.U
+          addr + io.sAxi4.strobeWidth.U
         },
         AxiBurstType.BURST_WRAP -> {
           val wrapSize = Wire(UInt(32.W))
-          wrapSize := len << log2Ceil(io.sAxi4.dataWidthByteNum)
+          wrapSize := len << log2Ceil(io.sAxi4.strobeWidth)
           val wrapEnable = (addr & wrapSize) === wrapSize
-          Mux(wrapEnable, addr - wrapSize, addr + io.sAxi4.dataWidthByteNum.U)
+          Mux(wrapEnable, addr - wrapSize, addr + io.sAxi4.strobeWidth.U)
         }
       )
     }
@@ -47,14 +48,14 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
   val arLen   = RegInit(0.U(8.W))
   val rId     = if (io.sAxi4.hasId) Some(RegInit(0.U(io.sAxi4.idWidth.W))) else None
 
-  io.mAcornW.rd.cmd.valid     := readCmdState === ReadState.BUSY
-  io.mAcornW.rd.cmd.bits.addr := arAddr
+  io.mAcorn.rd.cmd.valid     := readCmdState === ReadState.BUSY
+  io.mAcorn.rd.cmd.bits.addr := arAddr
 
   io.sAxi4.ar.ready := readCmdState === ReadState.IDLE && readRespState === ReadState.IDLE
 
-  io.sAxi4.r handshakeFrom io.mAcornW.rd.resp
-  io.sAxi4.r.bits.data := io.mAcornW.rd.resp.bits.rdata
-  io.sAxi4.r.bits.resp := Mux(io.mAcornW.rd.resp.bits.error, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
+  io.sAxi4.r handshakeFrom io.mAcorn.rd.rsp
+  io.sAxi4.r.bits.data := io.mAcorn.rd.rsp.bits.data
+  io.sAxi4.r.bits.resp := io.mAcorn.rd.rsp.bits.status
   io.sAxi4.r.bits.last := readRespCnt === arLen
   if (io.sAxi4.hasId) { io.sAxi4.r.bits.id.get := rId.get }
 
@@ -72,7 +73,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
       }
     }
     is(ReadState.BUSY) {
-      when(io.mAcornW.rd.cmd.fire) {
+      when(io.mAcorn.rd.cmd.fire) {
         readCmdCnt := readCmdCnt + 1.U
         when(readCmdCnt === arLen) {
           readCmdState := ReadState.IDLE
@@ -90,7 +91,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
       }
     }
     is(ReadState.BUSY) {
-      when(io.mAcornW.rd.resp.fire) {
+      when(io.mAcorn.rd.rsp.fire) {
         readRespCnt := readRespCnt + 1.U
         when(readRespCnt === arLen) {
           readRespState := ReadState.IDLE
@@ -108,16 +109,14 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
 
   val writeCmdState = RegInit(WriteState.IDLE)
 
-//  val writeCmdBusy  = RegInit(false.B)
+  // val writeCmdBusy  = RegInit(false.B)
   val writeRespBusy = RegInit(false.B)
   val writeCmdCnt   = RegInit(0.U(8.W))
   val writeRespCnt  = RegInit(0.U(8.W))
 
-  val awReady = RegInit(false.B)
   val awAddr  = RegInit(0.U(io.sAxi4.addrWidth.W))
   val awBurst = RegInit(AxiBurstType.BURST_INCR)
   val awLen   = RegInit(0.U(8.W))
-  val awId    = if (idWidth > 0) Some(RegInit(0.U(io.sAxi4.idWidth.W))) else None
 
   //  val wLast = RegInit(false.B)
 
@@ -126,17 +125,17 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
   val bResp  = RegInit(AxiResp.RESP_OKAY)
 
   io.sAxi4.aw.ready    := writeCmdState === WriteState.IDLE
-  io.sAxi4.w.ready     := writeCmdState === WriteState.BUSY && io.mAcornW.wr.cmd.ready
+  io.sAxi4.w.ready     := writeCmdState === WriteState.BUSY && io.mAcorn.wr.cmd.ready
   io.sAxi4.b.valid     := bValid
   io.sAxi4.b.bits.resp := bResp
   if (io.sAxi4.hasId) { io.sAxi4.b.bits.id.get := bId.get }
 
-  io.mAcornW.wr.cmd.valid      := writeCmdState === WriteState.BUSY && io.sAxi4.w.valid
-  io.mAcornW.wr.cmd.bits.addr  := awAddr
-  io.mAcornW.wr.cmd.bits.wdata := io.sAxi4.w.bits.data
-  io.mAcornW.wr.cmd.bits.wmask := io.sAxi4.w.bits.strb
+  io.mAcorn.wr.cmd.valid       := writeCmdState === WriteState.BUSY && io.sAxi4.w.valid
+  io.mAcorn.wr.cmd.bits.addr   := awAddr
+  io.mAcorn.wr.cmd.bits.data   := io.sAxi4.w.bits.data
+  io.mAcorn.wr.cmd.bits.strobe := io.sAxi4.w.bits.strb
 
-  io.mAcornW.wr.resp.ready := io.sAxi4.b.ready
+  io.mAcorn.wr.rsp.ready := io.sAxi4.b.ready
 
   switch(writeCmdState) {
     is(WriteState.IDLE) {
@@ -161,7 +160,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
       }
     }
     is(WriteState.WAIT_RESP) {
-      when(writeRespBusy && io.mAcornW.wr.resp.fire && writeRespCnt === awLen) {
+      when(writeRespBusy && io.mAcorn.wr.rsp.fire && writeRespCnt === awLen) {
         when(io.sAxi4.b.isStarving) {
           writeCmdState := WriteState.IDLE
           bValid        := true.B
@@ -184,7 +183,7 @@ class Axi4ToAcornDpBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int
       writeRespBusy := true.B
     }
   }.otherwise {
-    when(io.mAcornW.wr.resp.fire) {
+    when(io.mAcorn.wr.rsp.fire) {
       writeRespCnt := writeRespCnt + 1.U
       when(writeRespCnt === awLen) {
         writeRespBusy := false.B

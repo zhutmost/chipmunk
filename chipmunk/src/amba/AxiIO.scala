@@ -76,8 +76,8 @@ private[amba] abstract class AxiIOBase(val dataWidth: Int, val addrWidth: Int, v
   require(addrWidth > 0, s"Address width must be at least 1, but got $addrWidth.")
   require(idWidth >= 0, s"ID width of AXI bus must be at least 0, but got $idWidth.")
 
-  val dataWidthByteNum: Int = dataWidth / 8
-  val hasId: Boolean        = idWidth > 0
+  val strobeWidth: Int = dataWidth / 8
+  val hasId: Boolean   = idWidth > 0
 
   val aw: StreamIO[AxiWriteAddrChannel]
   val w: StreamIO[AxiWriteDataChannel]

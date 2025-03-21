@@ -43,7 +43,7 @@ private[amba] abstract class AxiLiteIOBase(val dataWidth: Int, val addrWidth: In
 
   require(addrWidth > 0, s"Address width must be at least 1, but got $addrWidth")
 
-  val dataWidthByteNum: Int = dataWidth / 8
+  val strobeWidth: Int = dataWidth / 8
 
   val aw: StreamIO[AxiLiteAddrChannel]
   val w: StreamIO[AxiLiteWriteDataChannel]

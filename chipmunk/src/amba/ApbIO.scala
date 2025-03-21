@@ -10,8 +10,9 @@ private[amba] abstract class ApbIOBase(
   val hasStrb: Boolean = false
 ) extends Bundle
     with IsMasterSlave {
-  override def isMaster     = true
-  val dataWidthByteNum: Int = dataWidth / 8
+  override def isMaster = true
+
+  val strobeWidth: Int = dataWidth / 8
 
   def allowedDataWidth = List(8, 16, 32)
   require(allowedDataWidth contains dataWidth, s"Data width can only be 8, 16, or 32, but got $dataWidth.")
@@ -29,7 +30,7 @@ private[amba] abstract class ApbIOBase(
 
   // The below signals are optional in APB4 but not in APB3
   val prot = if (hasProt) Some(Output(UInt(3.W))) else None
-  val strb = if (hasStrb) Some(Output(UInt(dataWidthByteNum.W))) else None
+  val strb = if (hasStrb) Some(Output(UInt(strobeWidth.W))) else None
 }
 
 /** AMBA3 APB IO bundle.
