@@ -25,7 +25,7 @@
 - `def lsBit: Bool`
 返回当前信号实例的最高 1 比特，注意返回类型为 `Bool`，与 `lsBits(n)` 不同。
 
-### `setAll`/`clearAll`/`setAllTo` — 将信号的所有比特赋 1 或 0
+### `filledOnes`/`filledZeros`/`filledWith`/`assignOnes`/`assignZeros` — 将信号的所有比特赋 1 或 0
 
 将一个信号的所有比特赋 1 或 0 是一个很普遍的需求，SystemVerilog 中引入了专门的语法：
 ```systemverilog
@@ -39,16 +39,23 @@ x2 := ~ 0.U // ~ 0.S if SInt
 ```
 无论如何，都很不直观。特别是如果我希望将所有比特赋值为某个 `Bool` 信号或某个 Scala `Boolean` 变量输出时，代码会变得更加难以阅读。
 
-因此，Chipmunk 提供了 `setAll`/`clearAll`/`setAllTo` 等一系列方法。具体如下：
+因此，Chipmunk 提供了 `filledOnes`/`filledZeros`/`filledWith` 等一系列方法。具体如下：
 
-- `def setAllTo(b: Bool): T`
-将信号的每个比特都赋值为 b，并返回该信号。
-- `def setAllTo(b: Boolean): T`
-将信号的每个比特都赋值为 b 的 `Bool` 字面量（即`b.B`），并返回该信号。
-- `def setAll(): T`
-将信号的每个比特都赋值为 `true.B`，并返回该信号。
-- `def clearAll(): T`
-将信号的每个比特都赋值为 `false.B`，并返回该信号。
+- `def filledWith(b: Bool): T`
+  返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 `b`。
+- `def filledWith(b: Boolean): T`
+  返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 b 的 `Bool` 字面量（即`b.B`）。
+- `def filledOnes(): T`
+  返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 `true.B`。
+- `def filledZeros(): T`
+  返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 `false.B`。
+
+上述方法的共同特点是，它们会返回一个新的信号，不会改变当前信号的赋值。如果需要将一个信号的所有比特都赋值为全 0 或全 1，需要使用 `assignOnes`/`assignZeros`：
+
+- `def assignOnes(): Unit`：
+  将当前信号的所有比特都赋值为 `true.B`，相当于 `x := x.filledOnes()`。
+- `def assignZeros(): Unit`：
+  将当前信号的所有比特都赋值为 `false.B`，相当于 `x := x.filledZeros()`。
 
 ### `isOneHot` — 判断当前信号是否为独热码（one-hot）
 

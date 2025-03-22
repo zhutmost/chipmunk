@@ -212,11 +212,11 @@ class SpiDebugger(
   val uSpiRegFile = Module(new RegBank(addrWidth = 6, dataWidth = 32, regs = regFileConfigs))
 
   // One-cycle command valid is enough, because response channel is always ready.
-  uSpiRegFile.io.access.wr.cmd.valid       := regFileWrEnable
-  uSpiRegFile.io.access.wr.cmd.bits.addr   := regFileWrAddr
-  uSpiRegFile.io.access.wr.cmd.bits.data   := spiRxData
-  uSpiRegFile.io.access.wr.cmd.bits.strobe := Fill(32, true.B)
-  uSpiRegFile.io.access.wr.rsp.ready       := true.B
+  uSpiRegFile.io.access.wr.cmd.valid     := regFileWrEnable
+  uSpiRegFile.io.access.wr.cmd.bits.addr := regFileWrAddr
+  uSpiRegFile.io.access.wr.cmd.bits.data := spiRxData
+  uSpiRegFile.io.access.wr.rsp.ready     := true.B
+  uSpiRegFile.io.access.wr.cmd.bits.strobe.assignOnes()
 
   uSpiRegFile.io.access.rd.cmd.valid     := true.B
   uSpiRegFile.io.access.rd.cmd.bits.addr := regFileRdAddr

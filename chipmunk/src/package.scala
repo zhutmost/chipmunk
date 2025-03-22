@@ -11,34 +11,37 @@ package object chipmunk {
 
   implicit class AddMethodsToBits[T <: Bits](c: T) {
 
-    /** returns the most significant n bits. */
+    /** Returns the most significant n bits. */
     def msBits(n: Int = 1): UInt = c.head(n)
 
-    /** returns the least significant n bits. */
+    /** Returns the least significant n bits. */
     def lsBits(n: Int = 1): UInt = c(n - 1, 0)
 
-    /** returns the most significant bit as Bool. */
+    /** Returns the most significant bit as Bool. */
     def msBit: Bool = c.head(1).asBool
 
-    /** returns the least significant bit as Bool. */
+    /** Returns the least significant bit as Bool. */
     def lsBit: Bool = c(0).asBool
 
-    /** sets all the bits to the specified Bool literal. */
-    def setAllTo(b: Bool): T = {
-      c := Fill(c.getWidth, b).asTypeOf(c)
-      c
-    }
+    /** Returns a signal having the same type as this signal, but with all bits set to the specified Bool literal. */
+    def filledWith(b: Bool): T = Fill(c.getWidth, b).asTypeOf(c)
 
-    /** sets all the bits to the specified Boolean literal. */
-    def setAllTo(b: Boolean): T = setAllTo(b.B)
+    /** Returns a signal having the same type as this signal, but with all bits set to the specified Boolean literal. */
+    def filledWith(b: Boolean): T = filledWith(b.B)
 
-    /** sets all the bits to True. */
-    def setAll(): T = setAllTo(true)
+    /** Returns a signal having the same type as this signal, but with all bits set to True. */
+    def filledOnes: T = filledWith(true)
 
-    /** sets all the bits to False. */
-    def clearAll(): T = setAllTo(false)
+    /** Returns a signal having the same type as this signal, but with all bits set to False. */
+    def filledZeros: T = filledWith(false)
 
-    /** returns whether the number is one-hot encoded. */
+    /** Assign all bits to True. */
+    def assignOnes(): Unit = c := c.filledOnes
+
+    /** Assign all bits to False. */
+    def assignZeros(): Unit = c := c.filledZeros
+
+    /** Returns whether the number is one-hot encoded. */
     def isOneHot: Bool = {
       val parity = Wire(Vec(c.getWidth, Bool()))
       parity(0) := c(0)

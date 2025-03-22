@@ -2,7 +2,6 @@ package chipmunk
 package regbank
 
 import chisel3._
-import chisel3.util._
 
 /** Access types of a [[RegField]]. By extending this class, you can define your own access type. */
 abstract class RegFieldAccessType {
@@ -81,7 +80,7 @@ object RegFieldAccessType {
     */
   object ReadSet extends RegFieldAccessType {
     override def readUpdateData(curr: UInt, rdEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
   }
 
   /** WRC (Write, Read Clears All).
@@ -103,7 +102,7 @@ object RegFieldAccessType {
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
       Some(wrData)
     override def readUpdateData(curr: UInt, rdEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
   }
 
   /** WC (Write Clears All).
@@ -121,7 +120,7 @@ object RegFieldAccessType {
     */
   object WriteSet extends RegFieldAccessType {
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
   }
 
   /** WSRC (Write Sets All, Read Clears All).
@@ -130,7 +129,7 @@ object RegFieldAccessType {
     */
   object WriteSetReadClear extends RegFieldAccessType {
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
     override def readUpdateData(curr: UInt, rdEnable: Bool): Option[UInt] =
       Some(0.U)
   }
@@ -143,7 +142,7 @@ object RegFieldAccessType {
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
       Some(0.U)
     override def readUpdateData(curr: UInt, rdEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
   }
 
   /** W1C (Write One to Clear).
@@ -219,7 +218,7 @@ object RegFieldAccessType {
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
       Some(curr & (~wrData).asUInt)
     override def readUpdateData(curr: UInt, rdEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
   }
 
   /** W0SRC (Write Zero to Set, Read Clears All).
@@ -241,7 +240,7 @@ object RegFieldAccessType {
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
       Some(curr & wrData)
     override def readUpdateData(curr: UInt, rdEnable: Bool): Option[UInt] =
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
   }
 
   /** WO (Write Only).
@@ -271,7 +270,7 @@ object RegFieldAccessType {
   object WriteOnlySet extends RegFieldAccessType {
     override val cannotRead = true
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] = {
-      Some(Fill(curr.getWidth, true.B))
+      Some(curr.filledOnes)
     }
   }
 
