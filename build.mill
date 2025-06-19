@@ -40,7 +40,9 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
     "-Wunused:_",                   // Warn when imports, local and private vals, vars, defs, and types are unused.
 
     "-Ybackend-parallelism",
-    "8",                                         // Enable paralellisation — change to desired number!
+    Math
+      .min(Runtime.getRuntime.availableProcessors(), 8)
+      .toString,                                 // Enable parallelization — change to desired number!
     "-Ycache-plugin-class-loader:last-modified", // Enables caching of classloaders for compiler plugins
     "-Ycache-macro-class-loader:last-modified"   // and macro definitions. This can lead to performance improvements.
   )

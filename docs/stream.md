@@ -64,24 +64,24 @@ val myStream = Wire(Stream.empty)
 
 `StreamIO` 提供以下状态指示方法，它们的返回类型均为 `Bool`：
 
-| 语法 | 描述 |
-|:-----|:-----|
-| `x.fire`       | 当前周期正在进行数据传输，即 `ready && valid` |
-| `x.isPending`  | 上游数据已经就绪，但下游未能准备好接收，即 `!ready && valid` |
+| 语法             | 描述                                       |
+|:---------------|:-----------------------------------------|
+| `x.fire`       | 当前周期正在进行数据传输，即 `ready && valid`          |
+| `x.isPending`  | 上游数据已经就绪，但下游未能准备好接收，即 `!ready && valid`  |
 | `x.isStarving` | 下游已准备好接收数据，但上游没有发起传输，即 `ready && !valid` |
 
 `StreamIO` 也提供下列方法对数据流进行流控，它们会返回一个新的 `StreamIO`：
 
-| 语法 | 描述 |
-| :--- | :--- |
-| `x.haltWhen(cond)`     | 当 `cond` 为 `True` 时，数据传输会被阻断，即上下游模块均无法完成握手。 |
-| `x.continueWhen(cond)` | 相当于 `x.haltWhen(!cond)` |
+| 语法                     | 描述                                                              |
+|:-----------------------|:----------------------------------------------------------------|
+| `x.haltWhen(cond)`     | 当 `cond` 为 `True` 时，数据传输会被阻断，即上下游模块均无法完成握手。                     |
+| `x.continueWhen(cond)` | 相当于 `x.haltWhen(!cond)`                                         |
 | `x.throwWhen(cond)`    | 当 `cond` 为 `True` 时，数据传输会被丢弃，即上游模块发起的数据传输都会成功握手，但下游模块不会收到相应的数据。 |
-| `x.takeWhen(cond)`     | 相当于 `x.throwWhen(!cond)` |
+| `x.takeWhen(cond)`     | 相当于 `x.throwWhen(!cond)`                                        |
 
 #### Payload 变换
 
-{% asset_img stream-payload-operation.png StreamIO Payload Operation %}
+![StreamIO Payload Operation](./assets/stream-payload-operation.png)
 
 `StreamIO` 允许对 `payload` 直接进行一系列变换，包括：
 
@@ -153,18 +153,18 @@ val streamNew = streamOld.pipPassThrough()
 
 `StreamIO` 提供了一系列方法用于连接其他 `StreamIO`：
 
-| 语法   | 描述 |
-| :----- | :--- |
-| `x.connectFrom(y)` | 用 `y` 驱动 `x`，即 `y` 作为 `x` 的上游进行连接 `ready`、`valid`、`bits` 信号 |
-| `x.handshakeFrom(y)` | 和 `connectFrom` 类似，但只连接 `ready`、`valid` 信号，不连接 `bits` 信号 |
-| `x << y`   | 相当于 `x.connectFrom(y)`，返回 `y` |
-| `x >> y`   | 相当于 `y.connectFrom(x)`，返回 `y` |
-| `x <-< y`  | 相当于 `x << y.pipeForward()`，返回 `y`  |
-| `x >-> y`  | 相当于 `x.pipeForward() >> y`，返回 `y`  |
-| `x <\|< y` | 相当于 `x << y.pipeBackward()`，返回 `y` |
-| `x >\|> y` | 相当于 `x.pipeBackward() >> y`，返回 `y` |
-| `x <+< y`  | 相当于 `x << y.pipeAll()`，返回 `y` |
-| `x >+> y`  | 相当于 `x.pipeAll() >> y`，返回 `y` |
+| 语法                   | 描述                                                          |
+|:---------------------|:------------------------------------------------------------|
+| `x.connectFrom(y)`   | 用 `y` 驱动 `x`，即 `y` 作为 `x` 的上游进行连接 `ready`、`valid`、`bits` 信号 |
+| `x.handshakeFrom(y)` | 和 `connectFrom` 类似，但只连接 `ready`、`valid` 信号，不连接 `bits` 信号    |
+| `x << y`             | 相当于 `x.connectFrom(y)`，返回 `y`                               |
+| `x >> y`             | 相当于 `y.connectFrom(x)`，返回 `y`                               |
+| `x <-< y`            | 相当于 `x << y.pipeForward()`，返回 `y`                           |
+| `x >-> y`            | 相当于 `x.pipeForward() >> y`，返回 `y`                           |
+| `x <\|< y`           | 相当于 `x << y.pipeBackward()`，返回 `y`                          |
+| `x >\|> y`           | 相当于 `x.pipeBackward() >> y`，返回 `y`                          |
+| `x <+< y`            | 相当于 `x << y.pipeAll()`，返回 `y`                               |
+| `x >+> y`            | 相当于 `x.pipeAll() >> y`，返回 `y`                               |
 
 借助 `<<`、`>>` 等流操作符，我们可以实现可读性较强的 `StreamIO` 连接甚至级连，比如：
 ```scala

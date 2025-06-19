@@ -17,7 +17,7 @@ class Axi4ToAcornBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int =
     addrNext := MuxLookup(burst, addr) {
       Seq(
         AxiBurstType.BURST_FIXED -> addr,
-        AxiBurstType.BURST_INCR -> {
+        AxiBurstType.BURST_INCR  -> {
           addr + io.sAxi4.strobeWidth.U
         },
         AxiBurstType.BURST_WRAP -> {
@@ -55,7 +55,7 @@ class Axi4ToAcornBridge(dataWidth: Int = 32, addrWidth: Int = 32, idWidth: Int =
 
   io.sAxi4.r handshakeFrom io.mAcorn.rd.rsp
   io.sAxi4.r.bits.data := io.mAcorn.rd.rsp.bits.data
-  io.sAxi4.r.bits.resp := io.mAcorn.rd.rsp.bits.status
+  io.sAxi4.r.bits.resp := Mux(io.mAcorn.rd.rsp.bits.error, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
   io.sAxi4.r.bits.last := readRespCnt === arLen
   if (io.sAxi4.hasId) { io.sAxi4.r.bits.id.get := rId.get }
 

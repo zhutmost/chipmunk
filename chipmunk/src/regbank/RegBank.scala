@@ -1,7 +1,6 @@
 package chipmunk
 package regbank
 
-import amba.AxiResp
 import component.acorn.AcornIO
 
 import chisel3._
@@ -148,23 +147,23 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
   val wrAddrNoMatch  = !elemWrAddrHits.reduce(_ || _)
   val rdAddrNoMatch  = !elemRdAddrHits.reduce(_ || _)
 
-  val wrRespStatus = RegInit(AxiResp.RESP_OKAY)
-  val rdRespStatus = RegInit(AxiResp.RESP_OKAY)
+  val wrRespError = RegInit(false.B)
+  val rdRespError = RegInit(false.B)
 
   when(io.access.wr.cmd.fire) {
     wrRespPending := true.B
-    wrRespStatus  := Mux(wrAddrNoMatch, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
+    wrRespError   := wrAddrNoMatch
   }.elsewhen(io.access.wr.rsp.fire) {
     wrRespPending := false.B
-    wrRespStatus  := AxiResp.RESP_OKAY
+    wrRespError   := false.B
   }
 
   when(io.access.rd.cmd.fire) {
     rdRespPending := true.B
-    rdRespStatus  := Mux(rdAddrNoMatch, AxiResp.RESP_SLVERR, AxiResp.RESP_OKAY)
+    rdRespError   := rdAddrNoMatch
   }.elsewhen(io.access.rd.rsp.fire) {
     rdRespPending := false.B
-    rdRespStatus  := AxiResp.RESP_OKAY
+    rdRespError   := false.B
   }
 
   val elemRdDatas = Wire(Vec(regs.length, UInt(dataWidth.W)))
@@ -175,14 +174,14 @@ class RegBank(addrWidth: Int, dataWidth: Int, regs: Seq[RegElementConfig]) exten
     rdRespData := rdDataNext
   }
 
-  io.access.wr.rsp.bits.status := wrRespStatus
-  io.access.rd.rsp.bits.status := rdRespStatus
-  io.access.rd.rsp.bits.data   := rdRespData
+  io.access.wr.rsp.bits.error := wrRespError
+  io.access.rd.rsp.bits.error := rdRespError
+  io.access.rd.rsp.bits.data  := rdRespData
 
   for (idxElem <- regs.indices) {
-    val elemConfig   = regs(idxElem)
-    val elemWrEnable = io.access.wr.cmd.fire && elemWrAddrHits(idxElem)
-    val elemRdEnable = io.access.rd.cmd.fire && elemRdAddrHits(idxElem)
+    val elemConfig    = regs(idxElem)
+    val elemWrEnable  = io.access.wr.cmd.fire && elemWrAddrHits(idxElem)
+    val elemRdEnable  = io.access.rd.cmd.fire && elemRdAddrHits(idxElem)
     val elemWrBitMask = {
       val mask: UInt = io.access.wr.cmd.bits.strobe
       Cat(mask.asBools.reverse.flatMap(b => Seq.fill(8)(b)))

@@ -33,7 +33,7 @@ class AcornToAxiLiteBridge(dataWidth: Int = 32, addrWidth: Int = 32) extends Mod
   io.mAxiL.w.bits.strb := io.sAcorn.wr.cmd.bits.strobe
 
   io.sAcorn.wr.rsp handshakeFrom io.mAxiL.b
-  io.sAcorn.wr.rsp.bits.status := io.mAxiL.b.bits.resp
+  io.sAcorn.wr.rsp.bits.error := io.mAxiL.b.bits.resp =/= AxiResp.RESP_OKAY
 
   // ---------------------------------------------------------------------------
   // Read (ar & r)
@@ -43,6 +43,6 @@ class AcornToAxiLiteBridge(dataWidth: Int = 32, addrWidth: Int = 32) extends Mod
   io.mAxiL.ar.bits.prot := 0.U
 
   io.sAcorn.rd.rsp handshakeFrom io.mAxiL.r
-  io.sAcorn.rd.rsp.bits.data   := io.mAxiL.r.bits.data
-  io.sAcorn.rd.rsp.bits.status := io.mAxiL.r.bits.resp
+  io.sAcorn.rd.rsp.bits.data  := io.mAxiL.r.bits.data
+  io.sAcorn.rd.rsp.bits.error := io.mAxiL.r.bits.resp =/= AxiResp.RESP_OKAY
 }

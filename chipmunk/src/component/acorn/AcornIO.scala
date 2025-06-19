@@ -1,7 +1,6 @@
 package chipmunk
 package component.acorn
 
-import amba.AxiResp
 import stream._
 
 import chisel3._
@@ -20,8 +19,8 @@ class AcornWrCmdChannel(val dataWidth: Int, val addrWidth: Int) extends Bundle {
 
 class AcornWrRspChannel() extends Bundle {
 
-  /** The responded status flags. */
-  val status = AxiResp()
+  /** Whether the write access fails. */
+  val error = Bool()
 }
 
 class AcornRdCmdChannel(val addrWidth: Int) extends Bundle {
@@ -35,14 +34,17 @@ class AcornRdRspChannel(val dataWidth: Int) extends Bundle {
   /** The responded read-back data. */
   val data = UInt(dataWidth.W)
 
-  /** The responded status flag. */
-  val status = AxiResp()
+  /** Whether the read access fails. */
+  val error = Bool()
 }
 
 class AcornIO(val dataWidth: Int, val addrWidth: Int) extends Bundle with IsMasterSlave {
   override def isMaster = true
 
-  require(dataWidth > 0, s"Data width of Acorn bus must be at least 1, but got $dataWidth.")
+  require(
+    dataWidth > 0 && (dataWidth & (dataWidth - 1)) == 0,
+    s"Data width of Acorn bus must be power of 2, but got $dataWidth."
+  )
   require(addrWidth > 0, s"Address width of Acorn bus must be at least 1, but got $addrWidth.")
 
   val strobeWidth: Int = AcornIO.strobeWidth(dataWidth)

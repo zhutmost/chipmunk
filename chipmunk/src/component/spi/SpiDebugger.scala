@@ -72,7 +72,7 @@ class SpiDebugger(
   val spiStateCnt      = RegInit(0.U(5.W))
   val spiStateCntSck8  = spiStateCnt === 7.U
   val spiStateCntSck32 = spiStateCnt === 31.U
-  val spiStateCntFull = MuxLookup(spiStateCurr, false.B)(
+  val spiStateCntFull  = MuxLookup(spiStateCurr, false.B)(
     Seq(
       SpiState.CMD          -> spiStateCntSck8,
       SpiState.REG_WR_DATA  -> spiStateCntSck32,
@@ -228,10 +228,10 @@ class SpiDebugger(
   uSpiRegFile.io.fields("BUS_RD_DATA").backdoorUpdate.get.bits  := io.mDbg.rd.rsp.bits.data
 
   uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.valid := io.mDbg.wr.rsp.fire
-  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.rsp.bits.status.asUInt
+  uSpiRegFile.io.fields("BUS_WR_RESP").backdoorUpdate.get.bits  := io.mDbg.wr.rsp.bits.error.asUInt
 
   uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.valid := io.mDbg.rd.rsp.fire
-  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.rsp.bits.status.asUInt
+  uSpiRegFile.io.fields("BUS_RD_RESP").backdoorUpdate.get.bits  := io.mDbg.rd.rsp.bits.error.asUInt
 
   val busAddrBufUpdate = spiStateCntDone && spiStateCurr === SpiState.BUS_ADDR
   uSpiRegFile.io.fields("BUS_ADDR_L").backdoorUpdate.get.valid := busAddrBufUpdate
