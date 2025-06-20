@@ -17,7 +17,7 @@ object Dependencies {
   val scalaTest = mvn"org.scalatest::scalatest:3.2.19"
 }
 
-trait CommonModule extends ScalaModule with ScalafmtModule {
+trait ChiselCircuitsModule extends ScalaModule with ScalafmtModule {
   override def scalaVersion = Dependencies.scalaVersion
 
   override def scalacOptions = super.scalacOptions() ++ Seq(
@@ -55,7 +55,7 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
   }
 }
 
-object chipmunk extends CommonModule with PublishModule {
+object chipmunk extends ChiselCircuitsModule with PublishModule {
   def publishVersion = "0.1-SNAPSHOT"
 
   def pomSettings = PomSettings(
@@ -68,6 +68,6 @@ object chipmunk extends CommonModule with PublishModule {
   )
 }
 
-object mylib extends CommonModule {
+object mylib extends ChiselCircuitsModule {
   override def moduleDeps: Seq[ScalaModule] = Seq(chipmunk)
 }
