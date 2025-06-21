@@ -125,7 +125,7 @@ package object tester {
       }
 
       // Initialize Module Info
-      val dut = someDut.get
+      val dut   = someDut.get
       val ports = {
 
         // TODO: We infer the names of various ports since we don't currently have a good alternative when using MFC. We

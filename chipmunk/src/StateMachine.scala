@@ -103,7 +103,7 @@ abstract class StateMachineEncoding {
     states.zipWithIndex.map { case (state, index) =>
       val id: Int = userForcedIds.get(index) match {
         case Some(id) => id
-        case None =>
+        case None     =>
           var id = 0
           while ({
             id = encode(j)

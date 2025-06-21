@@ -65,8 +65,8 @@ trait TestRunner[B <: Backend] {
       if (ephemeral) {
         // Note that if an Exception is thrown during the simulation, the shutdown hook will not be executed.
         sys.addShutdownHook {
-          import scala.reflect.io.Directory
           import java.io.File
+          import scala.reflect.io.Directory
           new Directory(new File(workspace.absolutePath)).deleteRecursively()
         }
       }
@@ -104,6 +104,7 @@ trait TestRunner[B <: Backend] {
     val elaboratedModule: ElaboratedModule[T]
   ) {
     private var runSimCnt: Int = 0
+
     private def getRunSimCnt(inc: Boolean = true): Int = {
       if (inc) {
         runSimCnt += 1

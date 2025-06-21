@@ -248,7 +248,8 @@ object RegFieldAccessType {
     * Write: changed to written value. Read: no effect, and read-back result is 0.
     */
   object WriteOnly extends RegFieldAccessType {
-    override val cannotRead = true
+    override val cannotRead: Boolean = true
+
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
       Some(wrData)
   }
@@ -258,7 +259,8 @@ object RegFieldAccessType {
     * Write: sets all bits to 0’s. Read: no effect, and read-back result is 0.
     */
   object WriteOnlyClear extends RegFieldAccessType {
-    override val cannotRead = true
+    override val cannotRead: Boolean = true
+
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] =
       Some(0.U)
   }
@@ -268,7 +270,8 @@ object RegFieldAccessType {
     * Write: sets all bits to 1’s. Read: no effect, and read-back result is 0.
     */
   object WriteOnlySet extends RegFieldAccessType {
-    override val cannotRead = true
+    override val cannotRead: Boolean = true
+
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] = {
       Some(curr.filledOnes)
     }
@@ -293,7 +296,8 @@ object RegFieldAccessType {
     * Write: changed to written value only when the 1st write after reset. Read: no effect, and read-back result is 0.
     */
   object WriteOnlyOnce extends RegFieldAccessType {
-    override val cannotRead = true
+    override val cannotRead: Boolean = true
+
     override def writeUpdateData(curr: UInt, wrData: UInt, wrEnable: Bool): Option[UInt] = {
       val haveWritten = RegInit(0.U(curr.getWidth.W))
       when(wrEnable) {

@@ -10,6 +10,7 @@ import svsim._
 trait VerilatorTestRunner extends TestRunner[verilator.Backend] {
   def _createSimulation(config: TestRunnerConfig, workspace: Workspace, workingDirTag: String): Simulation = {
     val backend = verilator.Backend.initializeFromProcessEnvironment()
+
     val commonCompilationSettings: CommonCompilationSettings = {
       import CommonCompilationSettings._
       CommonCompilationSettings(

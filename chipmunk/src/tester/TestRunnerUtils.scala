@@ -22,7 +22,7 @@ trait TestRunnerUtils {
         module.controller.run(0)
       } else {
         val simulationPort = module.port(clock)
-        val sentinelOpt = sentinel.map { case (sentinelPort, sentinelValue) =>
+        val sentinelOpt    = sentinel.map { case (sentinelPort, sentinelValue) =>
           module.port(sentinelPort) -> sentinelValue
         }
         simulationPort.tick(

@@ -39,8 +39,8 @@ object StreamQueue {
     useSyncReadMem: Boolean = false,
     flush: Option[Bool] = None
   ): StreamIO[T] = {
-    val ret: StreamIO[T] = Wire(Stream(chiselTypeOf(enq.bits)))
-    val deq = if (entries == 0) {
+    val ret: StreamIO[T]     = Wire(Stream(chiselTypeOf(enq.bits)))
+    val deq: ReadyValidIO[T] = if (entries == 0) {
       enq
     } else {
       val q = Module(new Queue(chiselTypeOf(enq.bits), entries, pipe, flow, useSyncReadMem, flush.isDefined))

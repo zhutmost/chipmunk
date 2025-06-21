@@ -12,6 +12,7 @@ class ApbIORtlConnector(
 )(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
     extends RtlConnector(postfix, toggleCase, overrideNames)({
       val strobeWidth: Int = dataWidth / 8
+
       val axiPorts = Seq(
         "PADDR"   -> Output(UInt(addrWidth.W)),
         "PSELX"   -> Output(UInt(4.W)),

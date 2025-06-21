@@ -56,6 +56,7 @@ private[amba] class AxiIORtlConnector(
       val strobeWidth: Int = dataWidth / 8
       val lockWidth: Int   = if (axi3) 2 else 1
       val lenWidth: Int    = if (axi3) 4 else 8
+
       val axiPorts = Seq(
         "AWID"     -> (if (idWidth != 0) Some(Output(UInt(idWidth.W))) else None),
         "AWADDR"   -> Output(UInt(addrWidth.W)),
