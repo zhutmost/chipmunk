@@ -58,6 +58,11 @@ jobs:
       - name: Setup Mill
         uses: zhutmost/setup-mill@main
 
+      - name: Setup CIRCT/firtool
+        uses: zhutmost/setup-circt@main
+        with:
+          version: '1.62.1'
+
       - name: Run tests
         run:
           mill __.test
