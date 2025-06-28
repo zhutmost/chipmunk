@@ -59,18 +59,16 @@ private[amba] abstract class AxiLiteIOBase(val dataWidth: Int, val addrWidth: In
   * @param addrWidth
   *   The bit width of the bus address.
   */
-class Axi4LiteIO(dataWidth: Int, addrWidth: Int) extends AxiLiteIOBase(dataWidth, addrWidth) {
+class Axi4LiteIO(dataWidth: Int, addrWidth: Int)
+    extends AxiLiteIOBase(dataWidth, addrWidth)
+    with WithVerilogIO[Axi4LiteVerilogIO] {
   val aw = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val w  = Master(Stream(new AxiLiteWriteDataChannel(dataWidth)))
   val b  = Slave(Stream(new AxiLiteWriteRespChannel()))
   val ar = Master(Stream(new AxiLiteAddrChannel(addrWidth)))
   val r  = Slave(Stream(new AxiLiteReadDataChannel(dataWidth)))
 
-  def rtlConnector(
-    postfix: Option[String] = None,
-    toggleCase: Boolean = false,
-    overrideNames: Map[String, String] = Map.empty
-  ) = {
-    new Axi4LiteIORtlConnector(dataWidth, addrWidth)(postfix, toggleCase, overrideNames)
+  def createVerilogIO(portNameTransforms: Seq[String => String] = Seq.empty) = {
+    new Axi4LiteVerilogIO(dataWidth, addrWidth)(portNameTransforms)
   }
 }

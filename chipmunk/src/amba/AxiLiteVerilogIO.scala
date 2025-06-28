@@ -18,19 +18,11 @@ import chisel3.experimental.dataview.DataView
   *   The bit width of the bus data.
   * @param addrWidth
   *   The bit width of the bus address.
-  * @param postfix
-  *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
-  *   AWADDR_abc). Leave it None if you don't need it.
-  * @param toggleCase
-  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
-  * @param overrideNames
-  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
+  * @param portNameTransforms
+  *   A sequence of functions to transform the port names. See [[VerilogIO]] for more details.
   */
-class Axi4LiteIORtlConnector(val dataWidth: Int, val addrWidth: Int)(
-  postfix: Option[String] = None,
-  toggleCase: Boolean = false,
-  overrideNames: Map[String, String] = Map.empty
-) extends RtlConnector(postfix, toggleCase, overrideNames)(
+class Axi4LiteVerilogIO(val dataWidth: Int, val addrWidth: Int)(portNameTransforms: Seq[String => String] = Seq.empty)
+    extends VerilogIO(portNameTransforms)(
       "AWADDR"  -> Output(UInt(addrWidth.W)),
       "AWPROT"  -> Output(UInt(3.W)),
       "AWVALID" -> Output(Bool()),
@@ -55,8 +47,8 @@ class Axi4LiteIORtlConnector(val dataWidth: Int, val addrWidth: Int)(
   override def isMaster = true
 }
 
-object Axi4LiteIORtlConnector {
-  implicit val axi4LiteView: DataView[Axi4LiteIORtlConnector, Axi4LiteIO] =
+object Axi4LiteVerilogIO {
+  implicit val axi4LiteView: DataView[Axi4LiteVerilogIO, Axi4LiteIO] =
     DataView.mapping(
       rc => new Axi4LiteIO(rc.dataWidth, rc.addrWidth),
       (rc, b) =>

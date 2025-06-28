@@ -16,15 +16,17 @@ class NicExample2Bbox(dw: Int = 32, aw: Int = 32)
   val resetn = IO(Input(Reset()))
 
   val s0 =
-    IO(Slave(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).rtlConnector(toggleCase = true))).suggestName("s00_axi")
+    IO(Slave(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).createVerilogIO(Seq(PortNameTransform.toggleCase))))
+      .suggestName("s00_axi")
   val m0 =
-    IO(Master(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).rtlConnector(toggleCase = true))).suggestName("m00_axi")
+    IO(Master(new Axi4LiteIO(dataWidth = dw, addrWidth = aw).createVerilogIO(Seq(PortNameTransform.toggleCase))))
+      .suggestName("m00_axi")
 
   override def desiredName = "NicExample2"
   addResource("amba/NicExample2.sv")
 }
 
-class AxiLiteIORtlConnectorSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class AxiLiteVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   "AxiLiteIORtlConnector" should "generate blackbox-friendly AXI-Lite interfaces with specific prefix naming" in {
     compile(new Module {
       val io = IO(new Bundle {

@@ -36,23 +36,18 @@ import chisel3.experimental.dataview.DataView
   *   Whether the bus has region signals. Default is false.
   * @param axi3
   *   Whether the bus is AXI3. Default is false (i.e., AXI4).
-  * @param postfix
-  *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
-  *   AWADDR_abc). Leave it None if you don't need it.
-  * @param toggleCase
-  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
-  * @param overrideNames
-  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
+  * @param portNameTransforms
+  *   A sequence of functions to transform the port names. See [[VerilogIO]] for more details.
   */
-private[amba] class AxiIORtlConnector(
+private[amba] class AxiVerilogIO(
   val dataWidth: Int,
   val addrWidth: Int,
   val idWidth: Int,
   val hasQos: Boolean = false,
   val hasRegion: Boolean = false,
   axi3: Boolean = false
-)(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
-    extends RtlConnector(postfix, toggleCase, overrideNames)({
+)(portNameTransforms: Seq[String => String] = Seq.empty)
+    extends VerilogIO(portNameTransforms)({
       val strobeWidth: Int = dataWidth / 8
       val lockWidth: Int   = if (axi3) 2 else 1
       val lenWidth: Int    = if (axi3) 4 else 8
@@ -113,8 +108,8 @@ private[amba] class AxiIORtlConnector(
   override def isMaster = true
 }
 
-object AxiIORtlConnector {
-  private def mapPortsToRtlConnector(rc: AxiIORtlConnector, b: AxiIOBase) = {
+object AxiVerilogIO {
+  private def mapPorts(rc: AxiVerilogIO, b: AxiIOBase) = {
     var portPairs = Seq(
       rc("AWADDR")  -> b.aw.bits.addr,
       rc("AWLEN")   -> b.aw.bits.len,
@@ -168,13 +163,13 @@ object AxiIORtlConnector {
     portPairs
   }
 
-  implicit val axi4View: DataView[Axi4IORtlConnector, Axi4IO] = DataView.mapping(
+  implicit val axi4View: DataView[Axi4VerilogIO, Axi4IO] = DataView.mapping(
     rc => new Axi4IO(rc.dataWidth, rc.addrWidth, rc.idWidth, rc.hasQos, rc.hasRegion),
-    (rc, b) => mapPortsToRtlConnector(rc, b)
+    (rc, b) => mapPorts(rc, b)
   )
 
-  implicit val axi3View: DataView[Axi3IORtlConnector, Axi3IO] =
-    DataView.mapping(rc => new Axi3IO(rc.dataWidth, rc.addrWidth, rc.idWidth), (rc, b) => mapPortsToRtlConnector(rc, b))
+  implicit val axi3View: DataView[Axi3VerilogIO, Axi3IO] =
+    DataView.mapping(rc => new Axi3IO(rc.dataWidth, rc.addrWidth, rc.idWidth), (rc, b) => mapPorts(rc, b))
 }
 
 /** Generate a [[Axi4IO]] interface with blackbox-friendly port names.
@@ -186,7 +181,6 @@ object AxiIORtlConnector {
   * val sView = s0.viewAs[Axi4IO]
   * m <> sView
   *   }}}
-  *
   * @param dataWidth
   *   The bit width of the [[Axi4IO]] bus data.
   * @param addrWidth
@@ -197,25 +191,14 @@ object AxiIORtlConnector {
   *   Whether the bus has QoS signals. Default is false.
   * @param hasRegion
   *   Whether the bus has region signals. Default is false.
-  * @param postfix
-  *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
-  *   AWADDR_abc). Leave it None if you don't need it.
-  * @param toggleCase
-  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
-  * @param overrideNames
-  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
-  *
+  * @param portNameTransforms
+  *   A sequence of functions to transform the port names. See [[VerilogIO]] for more details.
   * @see
-  *   [[AxiIORtlConnector]]
+  *   [[AxiVerilogIO]]
   */
-class Axi4IORtlConnector(
-  dataWidth: Int,
-  addrWidth: Int,
-  idWidth: Int,
-  hasQos: Boolean = false,
-  hasRegion: Boolean = false
-)(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
-    extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(postfix, toggleCase, overrideNames)
+class Axi4VerilogIO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = false, hasRegion: Boolean = false)(
+  portNameTransforms: Seq[String => String] = Seq.empty
+) extends AxiVerilogIO(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(portNameTransforms)
 
 /** Generate a [[Axi3IO]] interface with blackbox-friendly port names.
   *
@@ -226,26 +209,16 @@ class Axi4IORtlConnector(
   * val sView = s0.viewAs[Axi3IO]
   * m <> sView
   *   }}}
-  *
   * @param dataWidth
   *   The bit width of the [[Axi3IO]] bus data.
   * @param addrWidth
   *   The bit width of the [[Axi3IO]] bus address.
   * @param idWidth
   *   The bit width of the [[Axi3IO]] bus id.
-  * @param postfix
-  *   The postfix of the port names. If it is set, the port names will be appended with the postfix (e.g., AWADDR ->
-  *   AWADDR_abc). Leave it None if you don't need it.
-  * @param toggleCase
-  *   Whether to toggle the case of the port names (e.g., AWADDR -> awaddr_abc). Default is false.
-  * @param overrideNames
-  *   Port names to override the default port names (e.g., WSTRB -> WSTROBE).
-  *
+  * @param portNameTransforms
+  *   A sequence of functions to transform the port names. See [[VerilogIO]] for more details.
   * @see
-  *   [[AxiIORtlConnector]]
+  *   [[AxiVerilogIO]]
   */
-class Axi3IORtlConnector(dataWidth: Int, addrWidth: Int, idWidth: Int)(
-  postfix: Option[String] = None,
-  toggleCase: Boolean = false,
-  overrideNames: Map[String, String] = Map.empty
-) extends AxiIORtlConnector(dataWidth, addrWidth, idWidth, axi3 = true)(postfix, toggleCase, overrideNames)
+class Axi3VerilogIO(dataWidth: Int, addrWidth: Int, idWidth: Int)(portNameTransforms: Seq[String => String] = Seq.empty)
+    extends AxiVerilogIO(dataWidth, addrWidth, idWidth, axi3 = true)(portNameTransforms)

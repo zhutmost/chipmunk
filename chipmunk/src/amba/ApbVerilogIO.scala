@@ -4,13 +4,9 @@ package amba
 import chisel3._
 import chisel3.experimental.dataview.DataView
 
-class ApbIORtlConnector(
-  val dataWidth: Int,
-  val addrWidth: Int,
-  val hasProt: Boolean = false,
-  val hasStrb: Boolean = false
-)(postfix: Option[String] = None, toggleCase: Boolean = false, overrideNames: Map[String, String] = Map.empty)
-    extends RtlConnector(postfix, toggleCase, overrideNames)({
+class ApbVerilogIO(val dataWidth: Int, val addrWidth: Int, val hasProt: Boolean = false, val hasStrb: Boolean = false)(
+  portNameTransforms: Seq[String => String] = Seq.empty
+) extends VerilogIO(portNameTransforms)({
       val strobeWidth: Int = dataWidth / 8
 
       val axiPorts = Seq(
@@ -34,17 +30,14 @@ class ApbIORtlConnector(
   override def isMaster = true
 }
 
-object ApbIORtlConnector {
-  implicit val apb3View: DataView[ApbIORtlConnector, Apb3IO] =
-    DataView.mapping(rc => new Apb3IO(rc.dataWidth, rc.addrWidth), (rc, b) => mapPortsToRtlConnector(rc, b))
+object ApbVerilogIO {
+  implicit val apb3View: DataView[ApbVerilogIO, Apb3IO] =
+    DataView.mapping(rc => new Apb3IO(rc.dataWidth, rc.addrWidth), (rc, b) => mapPorts(rc, b))
 
-  implicit val apb4View: DataView[ApbIORtlConnector, Apb4IO] =
-    DataView.mapping(
-      rc => new Apb4IO(rc.dataWidth, rc.addrWidth, rc.hasProt, rc.hasStrb),
-      (rc, b) => mapPortsToRtlConnector(rc, b)
-    )
+  implicit val apb4View: DataView[ApbVerilogIO, Apb4IO] =
+    DataView.mapping(rc => new Apb4IO(rc.dataWidth, rc.addrWidth, rc.hasProt, rc.hasStrb), (rc, b) => mapPorts(rc, b))
 
-  private def mapPortsToRtlConnector(rc: ApbIORtlConnector, b: ApbIOBase) = {
+  private def mapPorts(rc: ApbVerilogIO, b: ApbIOBase) = {
     var portPairs = Seq(
       rc("PADDR")   -> b.addr,
       rc("PSELX")   -> b.selx,

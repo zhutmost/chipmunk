@@ -40,13 +40,9 @@ private[amba] abstract class ApbIOBase(
   * @param addrWidth
   *   The bit width of the bus address.
   */
-class Apb3IO(dataWidth: Int, addrWidth: Int) extends ApbIOBase(dataWidth, addrWidth) {
-  def rtlConnector(
-    postfix: Option[String] = None,
-    toggleCase: Boolean = false,
-    overrideNames: Map[String, String] = Map.empty
-  ) = {
-    new ApbIORtlConnector(dataWidth, addrWidth)(postfix, toggleCase, overrideNames)
+class Apb3IO(dataWidth: Int, addrWidth: Int) extends ApbIOBase(dataWidth, addrWidth) with WithVerilogIO[ApbVerilogIO] {
+  def createVerilogIO(portNameTransforms: Seq[String => String] = Seq.empty) = {
+    new ApbVerilogIO(dataWidth, addrWidth)(portNameTransforms)
   }
 }
 
@@ -62,12 +58,9 @@ class Apb3IO(dataWidth: Int, addrWidth: Int) extends ApbIOBase(dataWidth, addrWi
   *   Whether the bus has strobe signals.
   */
 class Apb4IO(dataWidth: Int, addrWidth: Int, hasProt: Boolean = false, hasStrb: Boolean = false)
-    extends ApbIOBase(dataWidth, addrWidth, hasProt, hasStrb) {
-  def rtlConnector(
-    postfix: Option[String] = None,
-    toggleCase: Boolean = false,
-    overrideNames: Map[String, String] = Map.empty
-  ) = {
-    new ApbIORtlConnector(dataWidth, addrWidth, hasProt, hasStrb)(postfix, toggleCase, overrideNames)
+    extends ApbIOBase(dataWidth, addrWidth, hasProt, hasStrb)
+    with WithVerilogIO[ApbVerilogIO] {
+  def createVerilogIO(portNameTransforms: Seq[String => String] = Seq.empty) = {
+    new ApbVerilogIO(dataWidth, addrWidth, hasProt, hasStrb)(portNameTransforms)
   }
 }

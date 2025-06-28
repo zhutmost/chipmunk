@@ -100,20 +100,16 @@ private[amba] abstract class AxiIOBase(val dataWidth: Int, val addrWidth: Int, v
   *   Whether the bus has region signals.
   */
 class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = false, hasRegion: Boolean = false)
-    extends AxiIOBase(dataWidth, addrWidth, idWidth) {
+    extends AxiIOBase(dataWidth, addrWidth, idWidth)
+    with WithVerilogIO[Axi4VerilogIO] {
   val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
   val w  = Master(Stream(new AxiWriteDataChannel(dataWidth))) // AXI4 does NOT have WID.
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, hasQos = hasQos, hasRegion = hasRegion)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 
-  def rtlConnector(
-    postfix: Option[String] = None,
-    toggleCase: Boolean = false,
-    overrideNames: Map[String, String] = Map.empty
-  ) = {
-    new Axi4IORtlConnector(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(postfix, toggleCase, overrideNames)
-  }
+  def createVerilogIO(portNameTransforms: Seq[String => String]) =
+    new Axi4VerilogIO(dataWidth, addrWidth, idWidth, hasQos, hasRegion)(portNameTransforms)
 }
 
 /** AMBA3 AXI IO bundle.
@@ -125,18 +121,15 @@ class Axi4IO(dataWidth: Int, addrWidth: Int, idWidth: Int, hasQos: Boolean = fal
   * @param idWidth
   *   The bit width of the bus id.
   */
-class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int) extends AxiIOBase(dataWidth, addrWidth, idWidth) {
+class Axi3IO(dataWidth: Int, addrWidth: Int, idWidth: Int)
+    extends AxiIOBase(dataWidth, addrWidth, idWidth)
+    with WithVerilogIO[Axi3VerilogIO] {
   val aw = Master(Stream(new AxiWriteAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val w  = Master(Stream(new AxiWriteDataChannel(dataWidth, idWidth)))
   val b  = Slave(Stream(new AxiWriteRespChannel(idWidth)))
   val ar = Master(Stream(new AxiReadAddrChannel(addrWidth, idWidth, lenWidth = 4, lockWidth = 2)))
   val r  = Slave(Stream(new AxiReadDataChannel(dataWidth, idWidth)))
 
-  def rtlConnector(
-    postfix: Option[String] = None,
-    toggleCase: Boolean = false,
-    overrideNames: Map[String, String] = Map.empty
-  ) = {
-    new Axi3IORtlConnector(dataWidth, addrWidth, idWidth)(postfix, toggleCase, overrideNames)
-  }
+  def createVerilogIO(portNameTransforms: Seq[String => String]) =
+    new Axi3VerilogIO(dataWidth, addrWidth, idWidth)(portNameTransforms)
 }

@@ -17,13 +17,16 @@ class NicExample3Bbox(dw: Int = 32, aw: Int = 32)
 
   val s0 =
     IO(
-      Slave(new Apb4IO(dataWidth = dw, addrWidth = aw, hasProt = true, hasStrb = true).rtlConnector(toggleCase = true))
+      Slave(
+        new Apb4IO(dataWidth = dw, addrWidth = aw, hasProt = true, hasStrb = true)
+          .createVerilogIO(Seq(PortNameTransform.toggleCase))
+      )
     ).suggestName("s00")
   val m0 =
     IO(
       Master(
         new Apb3IO(dataWidth = dw, addrWidth = aw)
-          .rtlConnector(toggleCase = true, overrideNames = Map("PSELX" -> "PSEL"))
+          .createVerilogIO(Seq(PortNameTransform.overrideName(Map("PSELX" -> "PSEL")), PortNameTransform.lowerCase))
       )
     ).suggestName("m00")
 
@@ -31,7 +34,7 @@ class NicExample3Bbox(dw: Int = 32, aw: Int = 32)
   addResource("amba/NicExample3.sv")
 }
 
-class ApbIORtlConnectorSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class ApbVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   "ApbIORtlConnector" should "generate blackbox-friendly APB interfaces with specific prefix naming" in {
     compile(new Module {
       val io = IO(new Bundle {

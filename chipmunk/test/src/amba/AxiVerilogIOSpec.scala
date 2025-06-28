@@ -12,11 +12,20 @@ import chisel3.util.HasExtModuleResource
 class NicExample0Bbox extends ExtModule with HasExtModuleResource {
   val clock  = IO(Input(Clock())).suggestName("ACLOCK")
   val resetn = IO(Input(Reset())).suggestName("ARESETN")
-  val s0 = FlatIO(
-    Slave(new Axi4IO(dataWidth = 128, addrWidth = 32, idWidth = 2).rtlConnector(postfix = Some("s_axi_spi")))
+  val s0     = FlatIO(
+    Slave(
+      new Axi4IO(dataWidth = 128, addrWidth = 32, idWidth = 2)
+        .createVerilogIO(Seq(PortNameTransform.stringPostfix("_s_axi_spi")))
+    )
   )
   val m0 =
-    FlatIO(Master(new Axi4IORtlConnector(dataWidth = 128, addrWidth = 32, idWidth = 2)(postfix = Some("m_axi_sram"))))
+    FlatIO(
+      Master(
+        new Axi4VerilogIO(dataWidth = 128, addrWidth = 32, idWidth = 2)(
+          Seq(PortNameTransform.stringPostfix("_m_axi_sram"))
+        )
+      )
+    )
 
   override def desiredName = "NicExample0"
   addResource("amba/NicExample0.sv")
@@ -26,15 +35,15 @@ class NicExample1Bbox extends ExtModule with HasExtModuleResource {
   val clock  = IO(Input(Clock()))
   val resetn = IO(Input(Reset()))
 
-  val s0 = IO(Slave(new Axi4IORtlConnector(dataWidth = 128, addrWidth = 32, idWidth = 2)())).suggestName("s_axi_spi")
-  val m0 = IO(Master(new Axi4IORtlConnector(dataWidth = 128, addrWidth = 32, idWidth = 2, hasRegion = true)()))
+  val s0 = IO(Slave(new Axi4VerilogIO(dataWidth = 128, addrWidth = 32, idWidth = 2)())).suggestName("s_axi_spi")
+  val m0 = IO(Master(new Axi4VerilogIO(dataWidth = 128, addrWidth = 32, idWidth = 2, hasRegion = true)()))
     .suggestName("m_axi_sram")
 
   override def desiredName = "NicExample1"
   addResource("amba/NicExample1.sv")
 }
 
-class AxiIORtlConnectorSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class AxiVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   "AxiIORtlConnector" should "generate blackbox-friendly AXI interfaces with specific postfix naming" in {
     compile(new Module {
       val io = IO(new Bundle {
