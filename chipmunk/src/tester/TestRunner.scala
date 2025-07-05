@@ -2,6 +2,7 @@ package chipmunk
 package tester
 
 import chisel3._
+import svsim.CommonCompilationSettings.Timescale
 import svsim._
 
 import java.time.LocalDateTime
@@ -60,7 +61,7 @@ trait TestRunner[B <: Backend] {
       workspace.reset()
       val elaboratedModule = workspace.elaborateGeneratedModule(() => module)
       additionalVerilogResources.foreach(workspace.addPrimarySourceFromResource(getClass, _))
-      workspace.generateAdditionalSources()
+      workspace.generateAdditionalSources(timescale = Some(Timescale.default))
 
       if (ephemeral) {
         // Note that if an Exception is thrown during the simulation, the shutdown hook will not be executed.

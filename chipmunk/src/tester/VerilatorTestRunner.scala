@@ -2,6 +2,7 @@ package chipmunk
 package tester
 
 import svsim._
+import svsim.verilator.Backend.CompilationSettings.TraceKind.Vcd
 
 /** Provides methods to run simulation in Scala with Verilator.
   *
@@ -20,7 +21,7 @@ trait VerilatorTestRunner extends TestRunner[verilator.Backend] {
     }
     val backendSpecificCompilationSettings: backend.CompilationSettings = {
       import verilator.Backend.CompilationSettings._
-      verilator.Backend.CompilationSettings(traceStyle = if (config.withWaveform) Some(TraceStyle.Vcd()) else None)
+      verilator.Backend.CompilationSettings(traceStyle = if (config.withWaveform) Some(TraceStyle(Vcd)) else None)
     }
 
     val simulation: Simulation =
