@@ -9,7 +9,7 @@ on:
 
 jobs:
   code-check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
           mill __.checkFormat
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -57,11 +57,6 @@ jobs:
 
       - name: Setup Mill
         uses: zhutmost/setup-mill@main
-
-      - name: Setup CIRCT/firtool
-        uses: zhutmost/setup-circt@main
-        with:
-          version: '1.62.1'
 
       - name: Run tests
         run:
