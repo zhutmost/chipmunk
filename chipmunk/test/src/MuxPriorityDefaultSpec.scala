@@ -1,12 +1,11 @@
 package chipmunk.test
 
 import chipmunk._
-import chipmunk.tester._
 import chisel3._
 
-class MuxPriorityDefaultSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class MuxPriorityDefaultSpec extends ChipmunkFlatSpec {
   "MuxPriorityDefault" should "return the same result as MuxPriority, or the default value if no sel signal is asserted" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val sel    = Input(UInt(3.W))
         val result = Output(Vec(4, UInt(2.W)))
@@ -19,21 +18,20 @@ class MuxPriorityDefaultSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
         default = 0.U
       )
       io.result(3) := MuxPriority(io.sel, choices)
-    }).runSim { dut =>
-      import TestRunnerUtils._
-      dut.io.sel #= 0.U
+    }) { dut =>
+      dut.io.sel poke 0.U
       dut.io.result(0) expect 0.U
       dut.io.result(1) expect 0.U
       dut.io.result(2) expect 0.U
       // dut.io.result(3) is undefined when no sel asserted
       dut.clock.step()
-      dut.io.sel #= 0b010.U
+      dut.io.sel poke 0b010.U
       dut.io.result(0) expect 2.U
       dut.io.result(1) expect 2.U
       dut.io.result(2) expect 2.U
       dut.io.result(3) expect 2.U
       dut.clock.step()
-      dut.io.sel #= 0b011.U
+      dut.io.sel poke 0b011.U
       dut.io.result(0) expect 1.U
       dut.io.result(1) expect 1.U
       dut.io.result(2) expect 1.U

@@ -3,11 +3,10 @@ package amba
 
 import chipmunk._
 import chipmunk.amba._
-import chipmunk.tester._
 import chisel3._
 import chisel3.experimental.ExtModule
-import chisel3.experimental.dataview.DataViewable
 import chisel3.util.HasExtModuleResource
+import chisel3.experimental.dataview._
 
 class NicExample2Bbox(dw: Int = 32, aw: Int = 32)
     extends ExtModule(Map("S00_DW" -> dw, "S00_AW" -> aw, "M00_DW" -> dw, "M00_AW" -> aw))
@@ -26,9 +25,9 @@ class NicExample2Bbox(dw: Int = 32, aw: Int = 32)
   addResource("amba/NicExample2.sv")
 }
 
-class AxiLiteVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class AxiLiteVerilogIOSpec extends ChipmunkFlatSpec {
   "AxiLiteIORtlConnector" should "generate blackbox-friendly AXI-Lite interfaces with specific prefix naming" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val s0 = Slave(new Axi4LiteIO(dataWidth = 32, addrWidth = 32))
         val m0 = Master(new Axi4LiteIO(dataWidth = 32, addrWidth = 32))
@@ -40,13 +39,12 @@ class AxiLiteVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       val m0View = uNic.m0.viewAs[Axi4LiteIO]
       io.s0 <> s0View
       io.m0 <> m0View
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       dut.io.s0.aw.bits.addr.randomize()
       dut.io.s0.aw.bits.prot.randomize()
       dut.io.m0.aw.ready #= true.B
-      dut.io.m0.aw.bits.addr expect dut.io.s0.aw.bits.addr.get()
-      dut.io.s0.aw.ready expect dut.io.m0.aw.ready.get()
+      dut.io.m0.aw.bits.addr expect dut.io.s0.aw.bits.addr.peek()
+      dut.io.s0.aw.ready expect dut.io.m0.aw.ready.peek()
     }
   }
 }

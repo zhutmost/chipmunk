@@ -1,12 +1,11 @@
 package chipmunk.test
 
 import chipmunk._
-import chipmunk.tester._
 import chisel3._
 
-class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class StateMachineSpec extends ChipmunkFlatSpec {
   "StateMachine" should "work in a elegant style" in {
-    val compiled = compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val a           = Input(Bool())
         val b           = Input(Bool())
@@ -43,9 +42,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       io.cIsActive   := fsm.isActive(fsm.sC)
       io.bIsEntering := fsm.isEntering(fsm.sB)
       io.cIsExiting  := fsm.isExiting(fsm.sC)
-    })
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       // a     _ 1 1 1 _ _ _
       // b     _ _ _ 1 _ _ _
       // c     _ _ _ _ _ 1 _
@@ -80,7 +77,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
 
   protected class StateMachineWithEncoding(encoding: StateMachineEncoding) extends Module {
     val io = IO(new Bundle {
-      val state = Output(UInt())
+      val state = Output(UInt(4.W)) // 4-bit is enough for all the following encodings
     })
     val fsm = new StateMachine(defaultEncoding = encoding) {
       val sA = new State with EntryPoint
@@ -100,12 +97,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   }
 
   it should "allow encode FSM states in a binary-sequential encoding" in {
-    val compiled = compile(new StateMachineWithEncoding(Sequential))
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
-      dut.reset #= true.B
-      dut.clock.step(5)
-      dut.reset #= false.B
+    simulate(new StateMachineWithEncoding(Sequential)) { dut =>
       dut.io.state expect 0.U
       dut.clock.step()
       dut.io.state expect 1.U
@@ -117,12 +109,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   }
 
   it should "allow encode FSM states in a binary-onehot encoding" in {
-    val compiled = compile(new StateMachineWithEncoding(OneHot))
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
-      dut.reset #= true.B
-      dut.clock.step(5)
-      dut.reset #= false.B
+    simulate(new StateMachineWithEncoding(OneHot)) { dut =>
       dut.io.state expect "b0001".U
       dut.clock.step()
       dut.io.state expect "b0010".U
@@ -134,12 +121,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   }
 
   it should "allow encode FSM states in a binary-gray encoding" in {
-    val compiled = compile(new StateMachineWithEncoding(Gray))
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
-      dut.reset #= true.B
-      dut.clock.step(5)
-      dut.reset #= false.B
+    simulate(new StateMachineWithEncoding(Gray)) { dut =>
       dut.io.state expect "b00".U
       dut.clock.step()
       dut.io.state expect "b01".U
@@ -151,9 +133,9 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   }
 
   it should "allow encode FSM states with user-specified state ids" in {
-    val compiled = compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
-        val state = Output(UInt())
+        val state = Output(UInt(5.W)) // 5-bit for user-defined state ids
       })
       val fsm = new StateMachine {
         val sA = new State(2.U) with EntryPoint
@@ -170,12 +152,7 @@ class StateMachineSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
         }
       }
       io.state := fsm.stateCurr
-    })
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
-      dut.reset #= true.B
-      dut.clock.step(5)
-      dut.reset #= false.B
+    }) { dut =>
       dut.io.state expect 0.U // BOOT
       dut.clock.step()
       dut.io.state expect 2.U // sA

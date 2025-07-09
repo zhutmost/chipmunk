@@ -3,12 +3,11 @@ package stream
 
 import chipmunk._
 import chipmunk.stream._
-import chipmunk.tester._
 import chisel3._
 
-class StreamArbiterSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class StreamArbiterSpec extends ChipmunkFlatSpec {
   "StreamArbiter" should "decide which input stream to fire" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val in0   = Slave(Flow(UInt(8.W)))
         val in1   = Slave(Flow(UInt(8.W)))
@@ -17,8 +16,7 @@ class StreamArbiterSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       })
       io.outRR << StreamArbiter.roundRobin(Seq(io.in0.asStream, io.in1.asStream))
       io.outLF << StreamArbiter.lowerFirst(Seq(io.in0.asStream, io.in1.asStream))
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       dut.reset #= true.B
       dut.io.outRR.ready #= true.B
       dut.io.outLF.ready #= true.B

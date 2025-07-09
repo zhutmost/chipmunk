@@ -3,19 +3,17 @@ package stream
 
 import chipmunk._
 import chipmunk.stream._
-import chipmunk.tester._
 import chisel3._
 
-class StreamDelaySpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class StreamDelaySpec extends ChipmunkFlatSpec {
   "StreamDelay" should "delay the input stream by fixed cycles" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val in  = Slave(Stream(UInt(8.W)))
         val out = Master(Stream(UInt(8.W)))
       })
       io.out << io.in.delayFixed(cycles = 2)
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       // inValid  _ 1 1 1 _
       // inReady  _ _ _ 1 _
       // outValid _ _ _ 1 _
@@ -37,22 +35,21 @@ class StreamDelaySpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   }
 
   it should "have no stall when delay cycle is 0" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val in  = Slave(Stream(UInt(8.W)))
         val out = Master(Stream(UInt(8.W)))
       })
       io.out << io.in.delayFixed(cycles = 0)
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       for (_ <- 0 until 10) {
         dut.io.in.valid.randomize()
         dut.io.in.bits.randomize()
-        dut.io.out.ready #= true
-        if (dut.io.in.valid.get().litToBoolean) {
+        dut.io.out.ready #= true.B
+        if (dut.io.in.valid.peekBoolean()) {
           dut.io.out.valid expect true
           dut.io.in.ready expect true
-          dut.io.out.bits expect dut.io.in.bits.get()
+          dut.io.out.bits expect dut.io.in.bits.peek()
         }
         dut.clock.step()
       }
@@ -60,18 +57,13 @@ class StreamDelaySpec extends ChipmunkFlatSpec with VerilatorTestRunner {
   }
 
   it should "delay the input stream by random cycles" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val in  = Slave(Stream(UInt(8.W)))
         val out = Master(Stream(UInt(8.W)))
       })
       io.out << io.in.delayRandom(minCycles = 2, maxCycles = 8)
-    }).runSim { dut =>
-      import TestRunnerUtils._
-      dut.reset #= true.B
-      dut.clock.step(5)
-      dut.reset #= false.B
-      dut.clock.step()
+    }) { dut =>
       dut.io.in.valid #= false.B
       dut.io.in.bits #= 0.U
       dut.io.out.ready #= true.B
@@ -89,7 +81,7 @@ class StreamDelaySpec extends ChipmunkFlatSpec with VerilatorTestRunner {
         // The next 7 cycles should have one valid output
         var outValids: List[Boolean] = List()
         for (_ <- 0 until 7) {
-          val outValid: Boolean = dut.io.out.valid.get().litToBoolean
+          val outValid: Boolean = dut.io.out.valid.peekBoolean()
           outValids = outValids :+ outValid
           if (outValid) {
             dut.io.out.bits expect i.U

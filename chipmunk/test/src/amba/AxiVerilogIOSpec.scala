@@ -3,11 +3,10 @@ package amba
 
 import chipmunk._
 import chipmunk.amba._
-import chipmunk.tester._
 import chisel3._
 import chisel3.experimental.ExtModule
-import chisel3.experimental.dataview.DataViewable
 import chisel3.util.HasExtModuleResource
+import chisel3.experimental.dataview._
 
 class NicExample0Bbox extends ExtModule with HasExtModuleResource {
   val clock  = IO(Input(Clock())).suggestName("ACLOCK")
@@ -43,9 +42,9 @@ class NicExample1Bbox extends ExtModule with HasExtModuleResource {
   addResource("amba/NicExample1.sv")
 }
 
-class AxiVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class AxiVerilogIOSpec extends ChipmunkFlatSpec {
   "AxiIORtlConnector" should "generate blackbox-friendly AXI interfaces with specific postfix naming" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val s0 = Slave(new Axi4IO(dataWidth = 32, addrWidth = 32, idWidth = 2))
         val m0 = Master(new Axi4IO(dataWidth = 32, addrWidth = 32, idWidth = 2))
@@ -57,19 +56,18 @@ class AxiVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       val m0View = uNic.m0.viewAs[Axi4IO]
       io.s0 <> s0View
       io.m0 <> m0View
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       dut.io.s0.aw.bits.id.get.randomize()
       dut.io.s0.aw.bits.addr.randomize()
       dut.io.m0.aw.ready #= true.B
-      dut.io.m0.aw.bits.addr expect dut.io.s0.aw.bits.addr.get()
-      dut.io.m0.aw.bits.id.get expect dut.io.s0.aw.bits.id.get.get()
-      dut.io.s0.aw.ready expect dut.io.m0.aw.ready.get()
+      dut.io.m0.aw.bits.addr expect dut.io.s0.aw.bits.addr.peek()
+      dut.io.m0.aw.bits.id.get expect dut.io.s0.aw.bits.id.get.peek()
+      dut.io.s0.aw.ready expect dut.io.m0.aw.ready.peek()
     }
   }
 
   it should "generate blackbox-friendly AXI interfaces with specific prefix naming" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val s0 = Slave(new Axi4IO(dataWidth = 32, addrWidth = 32, idWidth = 2))
         val m0 = Master(new Axi4IO(dataWidth = 32, addrWidth = 32, idWidth = 2, hasRegion = true))
@@ -81,14 +79,13 @@ class AxiVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       val m0View = uNic.m0.viewAs[Axi4IO]
       io.s0 <> s0View
       io.m0 <> m0View
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       dut.io.s0.aw.bits.id.get.randomize()
       dut.io.s0.aw.bits.addr.randomize()
       dut.io.m0.aw.ready #= true.B
-      dut.io.m0.aw.bits.addr expect dut.io.s0.aw.bits.addr.get()
-      dut.io.m0.aw.bits.id.get expect dut.io.s0.aw.bits.id.get.get()
-      dut.io.s0.aw.ready expect dut.io.m0.aw.ready.get()
+      dut.io.m0.aw.bits.addr expect dut.io.s0.aw.bits.addr.peek()
+      dut.io.m0.aw.bits.id.get expect dut.io.s0.aw.bits.id.get.peek()
+      dut.io.s0.aw.ready expect dut.io.m0.aw.ready.peek()
     }
   }
 }

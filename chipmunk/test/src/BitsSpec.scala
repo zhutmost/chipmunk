@@ -1,12 +1,11 @@
 package chipmunk.test
 
 import chipmunk._
-import chipmunk.tester._
 import chisel3._
 
-class BitsSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class BitsSpec extends ChipmunkFlatSpec {
   "Bits" should "have extended methods" in {
-    val compiled = compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val in         = Input(UInt(4.W))
         val lsBit      = Output(Bool())
@@ -32,10 +31,8 @@ class BitsSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       }.otherwise {
         io.assignBits.assignZeros()
       }
-    })
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
-      dut.io.in #= 0b0101.U
+    }) { dut =>
+      dut.io.in poke 0b0101.U
       dut.io.lsBit expect true.B
       dut.io.msBit expect false.B
       dut.io.lsBits expect 1.U
@@ -46,7 +43,7 @@ class BitsSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       dut.io.filledLsb expect 0b1111.U
       dut.io.assignBits expect 0b1111.U
       dut.clock.step()
-      dut.io.in #= 0b1000.U
+      dut.io.in poke 0b1000.U
       dut.io.lsBit expect false.B
       dut.io.msBit expect true.B
       dut.io.lsBits expect 0.U

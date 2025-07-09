@@ -3,11 +3,10 @@ package amba
 
 import chipmunk._
 import chipmunk.amba._
-import chipmunk.tester._
 import chisel3._
 import chisel3.experimental.ExtModule
-import chisel3.experimental.dataview.DataViewable
 import chisel3.util.HasExtModuleResource
+import chisel3.experimental.dataview._
 
 class NicExample3Bbox(dw: Int = 32, aw: Int = 32)
     extends ExtModule(Map("S00_DW" -> dw, "S00_AW" -> aw, "M00_DW" -> dw, "M00_AW" -> aw))
@@ -34,9 +33,9 @@ class NicExample3Bbox(dw: Int = 32, aw: Int = 32)
   addResource("amba/NicExample3.sv")
 }
 
-class ApbVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
+class ApbVerilogIOSpec extends ChipmunkFlatSpec {
   "ApbIORtlConnector" should "generate blackbox-friendly APB interfaces with specific prefix naming" in {
-    compile(new Module {
+    simulate(new Module {
       val io = IO(new Bundle {
         val s0 = Slave(new Apb4IO(dataWidth = 32, addrWidth = 32, hasProt = true, hasStrb = true))
         val m0 = Master(new Apb3IO(dataWidth = 32, addrWidth = 32))
@@ -48,13 +47,11 @@ class ApbVerilogIOSpec extends ChipmunkFlatSpec with VerilatorTestRunner {
       val m0View = uNic.m0.viewAs[Apb3IO]
       io.s0 <> s0View
       io.m0 <> m0View
-    }).runSim { dut =>
-      import TestRunnerUtils._
+    }) { dut =>
       dut.io.s0.addr.randomize()
       dut.io.s0.wdata.randomize()
-      dut.io.m0.addr expect dut.io.s0.addr.get()
-      dut.io.s0.wdata expect dut.io.m0.wdata.get()
+      dut.io.m0.addr expect dut.io.s0.addr.peek()
+      dut.io.s0.wdata expect dut.io.m0.wdata.peek()
     }
   }
-
 }
