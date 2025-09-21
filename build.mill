@@ -1,4 +1,4 @@
-//| mill-version: 1.0.0-RC3
+//| mill-version: 1.0.5
 
 package build
 
@@ -10,7 +10,7 @@ import mill.scalalib.scalafmt.*
 object Dependencies {
   val scalaVersion = "2.13.16"
 
-  val chiselVersion = "7.0.0-RC2"
+  val chiselVersion = "7.0.0"
   val chisel        = mvn"org.chipsalliance::chisel:$chiselVersion"
   val chiselPlugin  = mvn"org.chipsalliance:::chisel-plugin:$chiselVersion"
 

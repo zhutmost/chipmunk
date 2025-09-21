@@ -124,47 +124,16 @@ val reset1 = AsyncResetSyncDessert.withImplicitClockDomain()
 val reset2 = AsyncResetSyncDessert.withSpecificClockDomain(clockSys, coreReset, resetChainIn = reset1)
 ```
 
-### Out-of-box Simulation with Scala-written Testbench
-[View detailed document]()
-
-Code example:
-```scala
-import org.scalatest.Assertions
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-class TestRunnerSpec extends AnyFlatSpec with Assertions with Matchers with VerilatorTestRunner {
-  val compiled = TestRunnerConfig(withWaveform = true).compile(new Module {
-    val io = IO(new Bundle {
-      val a = Input(SInt(3.W))
-      val b = Output(SInt(3.W))
-      val c = Output(UInt(3.W))
-    })
-    io.b := io.a
-    io.c := io.a.asUInt
-  })
-  "TestRunner" should "compile DUT and run simulation" in {
-    compiled.runSim { dut =>
-      import TestRunnerUtils._
-      dut.clock.step()
-      dut.io.a #= -1.S(3.W)
-      dut.clock.step()
-      dut.io.b expect -1
-      dut.io.c expect 7
-    }
-  }
-}
-```
-
-### Clock Domain Crossing Blocks
-[View detailed document]()
+### StreamIO/FlowIO: Decouple Dataflow with Handshake
+[View detailed document](docs/stream)
 
 Code example:
 ```scala
 TODO
 ```
 
-### StreamIO/FlowIO: Decouple Dataflow with Handshake
-[View detailed document](docs/stream)
+### Clock Domain Crossing Blocks
+[View detailed document]()
 
 Code example:
 ```scala
