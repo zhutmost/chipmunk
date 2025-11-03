@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Coursier Cache
-        uses: coursier/cache-action@v6
+        uses: coursier/cache-action@v7
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -47,7 +47,7 @@ jobs:
           version: 1.0
 
       - name: Setup Coursier Cache
-        uses: coursier/cache-action@v6
+        uses: coursier/cache-action@v7
 
       - name: Setup Java
         uses: actions/setup-java@v5
