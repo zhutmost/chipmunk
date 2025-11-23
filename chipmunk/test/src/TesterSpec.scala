@@ -9,12 +9,10 @@ import java.nio.file.FileSystems
 class TesterSimpleSpec extends ChipmunkFlatSpec {
   "Tester" should "compile a DUT and run its testbench to generate a waveform" in {
     implicit val verilatorWithVcd: HasSimulator = HasSimulator.simulators.verilator(verilatorSettings =
-      svsim.verilator.Backend.CompilationSettings(traceStyle =
-        Some(
-          svsim.verilator.Backend.CompilationSettings
-            .TraceStyle(svsim.verilator.Backend.CompilationSettings.TraceKind.Vcd)
-        )
-      )
+      svsim.verilator.Backend.CompilationSettings.default.withTraceStyle({
+        import svsim.verilator.Backend.CompilationSettings._
+        Some(TraceStyle(TraceKind.Vcd))
+      })
     )
     simulate(new Module {
       val io = IO(new Bundle {
