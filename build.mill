@@ -13,7 +13,7 @@ object Dependencies {
   val chisel        = mvn"org.chipsalliance::chisel:$chiselVersion"
   val chiselPlugin  = mvn"org.chipsalliance:::chisel-plugin:$chiselVersion"
 
-  val scalaTest = mvn"org.scalatest::scalatest:3.2.19"
+  val scalaTest = mvn"org.scalatest::scalatest:3.2.20"
 }
 
 trait ChiselCircuitsModule extends ScalaModule with ScalafmtModule {
