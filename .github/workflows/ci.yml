@@ -7,6 +7,9 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   code-check:
     runs-on: ubuntu-latest
@@ -61,3 +64,30 @@ jobs:
       - name: Run tests
         run:
           mill __.test
+
+  submit-dependencies:
+    if: github.ref == 'refs/heads/main'
+    needs: [code-check, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Coursier Cache
+        uses: coursier/cache-action@v8
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Mill
+        uses: zhutmost/setup-mill@main
+
+      - name: Submit dependency graph
+        uses: zhutmost/mill-dependency-graph@13826c760378b63969106b4fd6a1e4273b4fa4d3
+        with:
+          correlator: chipmunk/dependencies
