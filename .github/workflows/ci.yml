@@ -20,12 +20,6 @@ jobs:
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v8
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - name: Setup Mill
         uses: zhutmost/setup-mill@main
 
@@ -52,12 +46,6 @@ jobs:
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v8
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - name: Setup Mill
         uses: zhutmost/setup-mill@main
 
@@ -78,16 +66,10 @@ jobs:
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v8
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - name: Setup Mill
         uses: zhutmost/setup-mill@main
 
       - name: Submit dependency graph
-        uses: zhutmost/mill-dependency-graph@13826c760378b63969106b4fd6a1e4273b4fa4d3
+        uses: zhutmost/mill-dependency-graph@v1
         with:
           correlator: chipmunk/dependencies
