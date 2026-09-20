@@ -17,10 +17,10 @@ Please open an issue if you have any questions.
 
 CHIPMUNK is an extension of Chisel, so it needs to be used together with CHISEL.
 
-[Mill](https://mill-build.com) is required to build and publish CHIPMUNK.
+Use the bundled [Mill](https://mill-build.org) bootstrap script to build and publish CHIPMUNK.
 
 ```shell
-mill chipmunk.publishLocal
+./mill chipmunk.publishLocal
 ```
 
 Then add CHIPMUNK to your build file.
