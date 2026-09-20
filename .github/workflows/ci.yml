@@ -58,6 +58,6 @@ jobs:
         uses: coursier/cache-action@v8
 
       - name: Submit dependency graph
-        uses: zhutmost/mill-dependency-graph@v1
+        uses: zhutmost/mill-dependency-graph@v1.1.0
         with:
           correlator: chipmunk/dependencies
