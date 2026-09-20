@@ -20,16 +20,11 @@ jobs:
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v8
 
-      - name: Setup Mill
-        uses: zhutmost/setup-mill@main
-
       - name: Check compilation
-        run:
-          mill __.compile
+        run: ./mill __.compile
 
       - name: Check formatting
-        run:
-          mill __.checkFormat
+        run: ./mill __.checkFormat
 
   test:
     runs-on: ubuntu-latest
@@ -46,12 +41,8 @@ jobs:
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v8
 
-      - name: Setup Mill
-        uses: zhutmost/setup-mill@main
-
       - name: Run tests
-        run:
-          mill __.test
+        run: ./mill __.test
 
   submit-dependencies:
     if: github.ref == 'refs/heads/main'
@@ -65,9 +56,6 @@ jobs:
 
       - name: Setup Coursier Cache
         uses: coursier/cache-action@v8
-
-      - name: Setup Mill
-        uses: zhutmost/setup-mill@main
 
       - name: Submit dependency graph
         uses: zhutmost/mill-dependency-graph@v1
