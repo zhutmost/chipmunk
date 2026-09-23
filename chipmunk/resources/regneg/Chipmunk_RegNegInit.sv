@@ -2,7 +2,7 @@
 
 module Chipmunk_RegNegInit #(
   parameter int               WIDTH       = 1,
-  parameter bit               RESET_ASYNC = 1'b1
+  parameter bit               RESET_ASYNC = 1'b1,
   parameter logic [WIDTH-1:0] INIT = '0
 )(
   input  var logic             clock,
