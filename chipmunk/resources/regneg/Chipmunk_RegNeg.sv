@@ -16,3 +16,5 @@ module Chipmunk_RegNeg #(
   end
 
 endmodule: Chipmunk_RegNeg
+
+`default_nettype wire
