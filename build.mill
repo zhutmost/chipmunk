@@ -24,8 +24,9 @@ trait ChiselModule extends ScalaModule {
     "-unchecked",
     "-Werror",
     "-explain-types",
-
-    "-Wsafe-init",
+    // Chisel Module/RawModule construction is incompatible with Scala's safe-init analysis.
+    // Chisel 7 still exposes these parameters through deprecated experimental aliases.
+    "-Wconf:msg=.*(IntParam|RawParam).*package chisel3.experimental.*:s",
     "-Wunused:all",
     "-Wimplausible-patterns"
   )
