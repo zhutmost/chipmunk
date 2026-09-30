@@ -39,14 +39,14 @@ private[chipmunk] final class RegNegInitBbox(bitwidth: Int, isResetAsync: Boolea
     extends ExtModule(
       Map(
         "WIDTH"       -> IntParam(BigInt(bitwidth)),
-        "RESET_ASYNC" -> IntParam(if (isResetAsync) BigInt(1) else BigInt(0)),
-        "INIT"        -> RawParam(s"${bitwidth}'h${initBits.toString(16)}")
+        "RESET_ASYNC" -> IntParam(if isResetAsync then BigInt(1) else BigInt(0)),
+        "INIT"        -> RawParam(s"${bitwidth}'h${initBits.toString(16)}"),
       )
     ) {
   require(bitwidth > 0, "RegNegInitBbox requires a positive data bitwidth.")
   require(
     initBits >= 0 && initBits.bitLength <= bitwidth,
-    "RegNegInitBbox.initBits must be an unsigned value fitting bitwidth."
+    "RegNegInitBbox.initBits must be an unsigned value fitting bitwidth.",
   )
 
   val io = FlatIO(new Bundle {
@@ -54,7 +54,7 @@ private[chipmunk] final class RegNegInitBbox(bitwidth: Int, isResetAsync: Boolea
 
     // Give the external port the same concrete reset type as the wrapper.
     val reset: Reset =
-      if (isResetAsync) Input(AsyncReset()) else Input(Bool())
+      if isResetAsync then Input(AsyncReset()) else Input(Bool())
 
     val en = Input(Bool())
     val d  = Input(UInt(bitwidth.W))
@@ -195,7 +195,7 @@ object RegNegEnable {
     require(next.isWidthKnown && next.getWidth > 0, "RegNegEnable.next must have a known, positive bitwidth.")
     require(
       init.isWidthKnown && init.getWidth == next.getWidth,
-      "RegNegEnable.init must have the same bitwidth as next."
+      "RegNegEnable.init must have the same bitwidth as next.",
     )
     require(DataMirror.checkTypeEquivalence(next, init), "RegNegEnable.init must have the same Chisel type as next.")
     require(init.isLit, "RegNegEnable.init must be a Chisel literal.")

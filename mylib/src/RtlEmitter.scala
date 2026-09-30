@@ -1,8 +1,9 @@
 package mylib
 
-import chipmunk._
 import chisel3._
 import circt.stage._
+
+import chipmunk._
 
 class MyIncrement extends Module {
   val io = IO(new Bundle {

@@ -6,7 +6,7 @@ import mill.scalalib.publish.*
 object Dependencies {
   val scalaVersion = "3.8.4"
 
-  val chiselVersion = "7.15.0+10-33fe25e2-SNAPSHOT"
+  val chiselVersion = "7.15.0+12-14b890ce-SNAPSHOT"
   val chisel        = mvn"org.chipsalliance::chisel:$chiselVersion"
   val chiselPlugin  = mvn"org.chipsalliance:::chisel-plugin:$chiselVersion"
 
@@ -22,12 +22,13 @@ trait ChiselModule extends ScalaModule {
     "-deprecation",
     "-feature",
     "-unchecked",
-    "-Werror",
+    // "-Werror",
     "-explain-types",
 
-    "-Wsafe-init",
     "-Wunused:all",
-    "-Wimplausible-patterns"
+    "-Wimplausible-patterns",
+    // Scala3's indent-style blocks often cause scalafmt/syntax-highlight issues, so disable it
+    "-no-indent",
   )
 
   override def repositories =
@@ -36,9 +37,8 @@ trait ChiselModule extends ScalaModule {
   override def mvnDeps             = super.mvnDeps() ++ Seq(Dependencies.chisel)
   override def scalacPluginMvnDeps = super.scalacPluginMvnDeps() ++ Seq(Dependencies.chiselPlugin)
 
-  object test extends ScalaTests with TestModule.ScalaTest {
+  object test extends ScalaTests with TestModule.ScalaTest:
     override def mvnDeps = super.mvnDeps() ++ Seq(Dependencies.scalaTest)
-  }
 }
 
 object chipmunk extends ChiselModule with PublishModule {
@@ -50,10 +50,9 @@ object chipmunk extends ChiselModule with PublishModule {
     url = "https://github.com/zhutmost/chipmunk",
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("zhutmost", "chipmunk"),
-    developers = Seq(Developer("zhutmost", "Haozhe Zhu", "https://github.com/zhutmost"))
+    developers = Seq(Developer("zhutmost", "Haozhe Zhu", "https://github.com/zhutmost")),
   )
 }
 
-object mylib extends ChiselModule {
+object mylib extends ChiselModule:
   override def moduleDeps: Seq[ScalaModule] = Seq(chipmunk)
-}

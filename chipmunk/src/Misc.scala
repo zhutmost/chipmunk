@@ -1,7 +1,7 @@
 package chipmunk
 
 import chisel3.*
-import chisel3.util.{PriorityMux}
+import chisel3.util.PriorityMux
 
 /** A Bundle with no payload fields. Useful as a typed empty payload. */
 final class EmptyBundle extends Bundle

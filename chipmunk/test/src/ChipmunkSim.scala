@@ -1,7 +1,7 @@
-package chipmunk.test
+package chipmunk
+package test
 
-import chipmunk.tester.{MultiClockSupport, TesterAPI, TraceSupport}
-import chisel3.simulator.scalatest.{ChiselSim, Cli}
+import chisel3.simulator.scalatest.{ChiselSim, Cli, HasCliOptions}
 import chisel3.simulator.scalatest.HasCliOptions.CliOption
 import org.scalatest.TestSuite
 import org.scalatest.flatspec.AnyFlatSpec
@@ -9,15 +9,10 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-trait ChipmunkSim
-    extends ChiselSim
-    with Cli.Simulator
-    with Cli.EmitFsdb
-    with Cli.EmitVpd
-    with TesterAPI
-    with TraceSupport
-    with MultiClockSupport:
-  this: TestSuite =>
+import chipmunk.tester.{MultiClockSupport, TesterAPI}
+
+trait EmitFst {
+  this: HasCliOptions =>
 
   addOption(
     CliOption.flag(
@@ -27,18 +22,33 @@ trait ChipmunkSim
         options.copy(simulationSettings = options.simulationSettings.copy(enableWavesAtTimeZero = true)),
       updateBackendSettings = {
         case options: svsim.verilator.Backend.CompilationSettings =>
-          options.withTraceStyle(Some(fstTraceStyle))
-
-        case _: svsim.vcs.Backend.CompilationSettings =>
-          throw new IllegalArgumentException(
-            "VCS does not support FST waveforms; use -DemitFsdb=1, -DemitVpd=1, or -DemitVcd=1."
+          options.withTraceStyle(
+            Some(
+              svsim.verilator.Backend.CompilationSettings
+                .TraceStyle(kind = svsim.verilator.Backend.CompilationSettings.TraceKind.Fst())
+            )
           )
 
+        case _: svsim.vcs.Backend.CompilationSettings =>
+          throw new IllegalArgumentException("VCS does not support FST; use FSDB, VPD, or VCD.")
+
         case other =>
-          throw new IllegalArgumentException(s"${other.getClass.getName} does not support Chipmunk FST configuration.")
-      }
+          throw new IllegalArgumentException(s"${other.getClass.getName} does not support FST.")
+      },
     )
   )
+}
+
+trait ChipmunkSim
+    extends ChiselSim
+    with Cli.Simulator
+    with Cli.EmitFsdb
+    with Cli.EmitVpd
+    with EmitFst
+    with TesterAPI
+    with MultiClockSupport {
+  this: TestSuite =>
+}
 
 abstract class ChipmunkFlatSpec extends AnyFlatSpec with Matchers with ChipmunkSim
 
