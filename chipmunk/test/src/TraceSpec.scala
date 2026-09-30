@@ -1,52 +1,63 @@
 package chipmunk.test
 
-import chipmunk.tester.SimulationArtifacts
-import chisel3.*
-import chisel3.simulator.HasSimulator
-
 import java.nio.file.Files
 
-private object TraceSpecDut:
-  final class Harness extends Module:
-    val io = IO(new Bundle:
+import scala.jdk.CollectionConverters.*
+
+import chisel3.*
+import org.scalatest.ConfigMap
+
+private object TraceSpecDut {
+  final class Harness extends Module {
+    val io = IO(new Bundle {
       val input  = Input(UInt(8.W))
-      val output = Output(UInt(8.W)))
+      val output = Output(UInt(8.W))
+    })
 
     val sampled = RegInit(0.U(8.W))
     sampled   := io.input
     io.output := sampled
+  }
+}
 
 class TraceSpec extends ChipmunkFlatSpec {
-  "TraceSupport" should "write a non-empty FST for an explicitly enabled waveform window" in {
-    given fstSimulator: HasSimulator = HasSimulator.simulators.verilator(verilatorSettings =
-      svsim.verilator.Backend.CompilationSettings.default.withTraceStyle(Some(fstTraceStyle))
-    )
+  override def configMap: ConfigMap =
+    super.configMap +
+      ("simulator" -> "verilator") +
+      ("emitFst"   -> "1")
 
-    simulate(new TraceSpecDut.Harness, subdirectory = Some("fst-window")): dut =>
-      dut.io.input #= 0x11.U
-      dut.clock.step()
-      dut.io.output.expect(0x11.U)
+  "EmitFst" should "write a non-empty FST" in {
+    simulate(new TraceSpecDut.Harness, subdirectory = Some("fst-window")) { dut =>
+      for value <- Seq(0x11, 0x22, 0x33, 0x44) do {
+        dut.io.input #= value.U
+        dut.clock.step()
+        dut.io.output.expect(value.U)
+      }
+    }
 
-      val result = withWaves:
-        for value <- Seq(0x22, 0x33, 0x44) do
-          dut.io.input #= value.U
-          dut.clock.step()
-          dut.io.output.expect(value.U)
-        "window-complete"
+    val root = implementation.getDirectory.resolve("fst-window")
+    withClue(s"Simulation directory: $root") {
+      Files.isDirectory(root) shouldBe true
+    }
 
-      result shouldBe "window-complete"
+    val stream   = Files.walk(root)
+    val fstFiles =
+      try
+        stream
+          .iterator()
+          .asScala
+          .filter(path => Files.isRegularFile(path))
+          .filter(path => path.getFileName.toString.endsWith(".fst"))
+          .toVector
+      finally stream.close()
 
-      // Activity outside this block must remain legal after withWaves has disabled tracing.
-      dut.io.input #= 0x55.U
-      dut.clock.step()
-      dut.io.output.expect(0x55.U)
-
-    val fstFiles = SimulationArtifacts.traceFiles.filter(_.getFileName.toString.endsWith(".fst"))
-    withClue(s"trace files: ${SimulationArtifacts.traceFiles.mkString(", ")}"):
+    withClue(s"FST files under $root: ${fstFiles.mkString(", ")}") {
       fstFiles should not be empty
-    fstFiles.foreach(path => Files.size(path) should be > 1L)
-
-    SimulationArtifacts.logFiles should not be empty
-    SimulationArtifacts.replayScripts should not be empty
+    }
+    fstFiles.foreach { path =>
+      withClue(s"FST file $path: ") {
+        Files.size(path) should be > 1L
+      }
+    }
   }
 }

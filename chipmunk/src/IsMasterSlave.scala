@@ -39,7 +39,7 @@ private[chipmunk] object DirectedRecord {
     require(!original._roleWrapped, "The same Record cannot be wrapped twice with Master/Slave.")
 
     val directed: T =
-      if (original.isMaster == asMaster) original
+      if original.isMaster == asMaster then original
       else Flipped(original)
 
     // Flipped may return a clone. Mark both the supplied instance and
