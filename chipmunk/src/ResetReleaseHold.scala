@@ -5,8 +5,8 @@ import chisel3.util.log2Ceil
 
 /** Hold a reset request until a release condition is stable in a control clock domain.
   *
-  * `releaseOk` must be synchronous to `controlClock`. A loss of `releaseOk` is observed on the next control clock
-  * edge; faults that must assert reset without that clock must also drive `asyncReset`. Connect `resetRequest` to the
+  * `releaseOk` must be synchronous to `controlClock`. A loss of `releaseOk` is observed on the next control clock edge;
+  * faults that must assert reset without that clock must also drive `asyncReset`. Connect `resetRequest` to the
   * asynchronous input of a separate [[ResetSync]] in each destination clock domain.
   *
   * @param stableCycles
