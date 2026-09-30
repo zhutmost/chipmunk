@@ -115,13 +115,15 @@ val fsm = new StateMachine {
 io.out := fsm.isExiting(fsm.s2)
 ```
 
-### Asynchronous Reset Synchronous Dessert
-[View detailed document]()
+### Reset release and synchronization
+[View detailed document](docs/reset.md)
 
 Code example:
 ```scala
-val reset1 = AsyncResetSyncDessert.withImplicitClockDomain()
-val reset2 = AsyncResetSyncDessert.withSpecificClockDomain(clockSys, coreReset, resetChainIn = reset1)
+val coreResetSync = Module(new ResetSync(stages = 2))
+coreResetSync.io.clock      := coreClock
+coreResetSync.io.asyncReset := powerOnReset
+val coreReset = coreResetSync.io.resetOut
 ```
 
 ### StreamIO/FlowIO: Decouple Dataflow with Handshake

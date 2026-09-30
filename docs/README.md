@@ -13,3 +13,4 @@ Here are the documents for CHIPMUNK.
 
 - [Acorn Bus](./acorn.md)
 - [SPI Debugger](./spi-debugger.md)
+- [Reset release and synchronization](./reset.md)
