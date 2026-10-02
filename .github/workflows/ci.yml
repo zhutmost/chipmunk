@@ -24,7 +24,10 @@ jobs:
         run: ./mill __.compile
 
       - name: Check formatting
-        run: ./mill __.checkFormat
+        run: |
+          ./mill mill.scalalib.scalafmt/checkFormatAll || (
+            ./mill mill.scalalib.scalafmt/ && git diff --exit-code
+          )
 
   test:
     runs-on: ubuntu-latest
