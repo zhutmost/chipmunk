@@ -1,266 +1,134 @@
 package chipmunk
 
-import chisel3._
+import scala.collection.mutable
 
-import scala.annotation.nowarn
-import scala.collection.mutable.ListBuffer
+import chisel3.*
+import chisel3.experimental.SourceInfo
 
-/** This trait indicates the entry point state of a finite state machine (FSM, [[StateMachine]]). It should be mixed in
-  * with a [[State]].
+/** A finite state machine whose states are literals of a ChiselEnum.
   *
-  * There should be only one entry point state in each FSM.
-  *
-  * @see
-  *   [[StateMachine]]
+  * The state register follows the clock and reset signals at the StateMachine call site. Reset selects the initial
+  * state directly. States without a transition hold their value; self-transitions do not produce entry or exit events.
   */
-trait EntryPoint extends State
+final class StateMachine[S <: EnumType] private (
+  private val states: Vector[S],
+  private val stateReg: S,
+  private val stateNext: S,
+) {
 
-/** State in a finite state machine (FSM, [[StateMachine]]).
-  *
-  * @param id
-  *   The user-defined encoding of this state. The default value is null (If so, it is determined by
-  *   [[StateMachine.defaultEncoding]]).
-  *
-  * @param sm
-  *   The FSM that this state belongs to. It is implicitly passed by the host FSM.
-  *
-  * @see
-  *   [[StateMachine]]
-  */
-class State(val id: UInt = null)(implicit sm: StateMachineAccessor) {
-  if (id != null) {
-    require(id.litOption.isDefined, "The id of a state should be a hardware literal.")
+  /** A read-only view of the current state. */
+  def current(using SourceInfo): S = stateReg.readOnly
+
+  /** Returns True while the current state is s. */
+  def is(s: S)(using SourceInfo): Bool = {
+    checkState(s)
+    stateReg === s
   }
 
-  private[chipmunk] val tasksWhenIsActive   = ListBuffer[() => Unit]()
-  private[chipmunk] val tasksWhenIsInactive = ListBuffer[() => Unit]()
-  private[chipmunk] val tasksWhenIsEntering = ListBuffer[() => Unit]()
-  private[chipmunk] val tasksWhenIsExiting  = ListBuffer[() => Unit]()
-
-  def whenIsActive(body: => Unit): this.type = {
-    tasksWhenIsActive += (() => body)
-    this
+  /** Returns True before the clock edge that changes the state from another state to s. */
+  def entering(s: S)(using SourceInfo): Bool = {
+    checkState(s)
+    stateReg =/= s && stateNext === s
   }
 
-  def whenIsInactive(body: => Unit): this.type = {
-    tasksWhenIsInactive += (() => body)
-    this
+  /** Returns True before the clock edge that changes the state from s to another state. */
+  def leaving(s: S)(using SourceInfo): Bool = {
+    checkState(s)
+    stateReg === s && stateNext =/= s
   }
 
-  def whenIsEntering(body: => Unit): this.type = {
-    tasksWhenIsEntering += (() => body)
-    this
-  }
+  /** True when the state register contains a declared enum value. */
+  def valid(using SourceInfo): Bool = stateReg.isValid
 
-  def whenIsExiting(body: => Unit): this.type = {
-    tasksWhenIsExiting += (() => body)
-    this
-  }
-
-  // Add this state to the host FSM
-  sm.register(this)
-}
-
-/** The entry point of a finite state machine (FSM, [[StateMachine]]). It is the same as `State with EntryPoint`.
-  */
-final class StateEntryPoint(implicit sm: StateMachineAccessor) extends State with EntryPoint
-
-/** Provides the finite state machine ([[StateMachine]], FSM) APIs visible to its states. */
-private[chipmunk] trait StateMachineAccessor {
-  def register(state: State): Unit
-}
-
-object Sequential extends StateMachineEncoding {
-  def encode(index: Int): Int = index
-}
-
-object OneHot extends StateMachineEncoding {
-  def encode(index: Int): Int = 1 << index
-}
-
-object Gray extends StateMachineEncoding {
-  def encode(index: Int): Int = index ^ (index >> 1)
-
-  override def stateToUInt(states: List[State]): Map[State, UInt] = {
-    states.zipWithIndex.map { case (state, index) =>
-      require(state.id == null, "Gray encoding does not support user-defined state id.")
-      state -> encode(index).U
-    }.toMap
+  private def checkState(s: S)(using sourceInfo: SourceInfo): Unit = {
+    require(
+      states.exists(_ eq s),
+      s"StateMachine requires a declared enum literal, got $s${sourceInfo.makeMessage(location => s" $location")}.",
+    )
   }
 }
 
-abstract class StateMachineEncoding {
-  def encode(index: Int): Int
+object StateMachine {
 
-  def stateToUInt(states: List[State]): Map[State, UInt] = {
-    val userForcedIds = states.zipWithIndex
-      .filter(_._1.id != null)
-      .map { case (state, index) =>
-        index -> state.id.litOption.get.toInt
-      }
-      .toMap
-    var j = 0
-    states.zipWithIndex.map { case (state, index) =>
-      val id: Int = userForcedIds.get(index) match {
-        case Some(id) => id
-        case None     =>
-          var id = 0
-          while ({
-            id = encode(j)
-            j += 1
-            userForcedIds.values.toList.contains(id)
-          }) {}
-          id
-      }
-      state -> id.U
-    }.toMap
+  /** Build an FSM immediately in the current Chisel clock/reset scope.
+    *
+    * Define the FSM outside hardware when/switch blocks. An omitted on block means the corresponding state holds. Each
+    * state may have at most one on block. Ordinary Chisel last-connect priority applies to goto assignments.
+    */
+  def apply[E <: ChiselEnum](states: E)(
+    initial: states.Type
+  )(body: Builder[states.Type] ?=> Unit)(using sourceInfo: SourceInfo): StateMachine[states.Type] = {
+    val values = states.all.toVector
+    require(values.nonEmpty, "StateMachine requires at least one state.")
+    require(
+      values.exists(_ eq initial),
+      s"StateMachine initial state must be a declared enum literal${sourceInfo.makeMessage(location => s" $location")}.",
+    )
+
+    val stateReg  = RegInit(initial).suggestName("stateCurr")
+    val stateNext = WireDefault(stateReg).suggestName("stateNext")
+    val machine   = new StateMachine[states.Type](values, stateReg, stateNext)
+
+    stateReg := stateNext
+
+    val builder = new Builder[states.Type](machine)
+    try body(using builder)
+    finally builder.close()
+
+    machine
   }
-}
 
-/** Finite state machine (FSM).
-  *
-  * @param defaultEncoding
-  *   The default state encoding (The binary values of the states) of the FSM states. The default value is
-  *   [[Sequential]].
-  *
-  * @param autoStart
-  *   Whether the FSM should automatically start (i.e., transit to the entry point state) when the reset is de-asserted.
-  *   The default value is true.
-  *
-  * @note
-  *   Each FSM should have one and only one entry point state ([[StateEntryPoint]]).
-  *
-  * @example
-  *   {{{
-  *   val fsm = new StateMachine {
-  *     val s1 = new State with EntryPoint
-  *     val s2 = new State
-  *     val s3 = new State
-  *
-  *     s1
-  *       .whenIsActive {
-  *         when(io.a) {
-  *           goto(s2)
-  *         }
-  *       }
-  *     s2
-  *       .whenIsActive {
-  *         when(io.b) {
-  *           goto(s3)
-  *         }
-  *       }
-  *     s3
-  *       .whenIsActive {
-  *         when(io.c) {
-  *           goto(s1)
-  *         }
-  *       }
-  *   }
-  *   }}}
-  *
-  * @see
-  *   [[State]]
-  */
-@nowarn("""cat=deprecation&origin=scala\.DelayedInit""")
-class StateMachine(defaultEncoding: StateMachineEncoding = Sequential, val autoStart: Boolean = true)
-    extends StateMachineAccessor
-    with DelayedInit {
-  implicit val implicitFsm: StateMachine = this
+  /** Generate hardware enabled while the FSM is in s. */
+  def on[S <: EnumType](s: S)(body: StateScope[S] ?=> Unit)(using builder: Builder[S], sourceInfo: SourceInfo): Unit =
+    builder.define(s)(body)
 
-  // When a State is instantiated, it will call register() to add itself to statesBuffer.
-  private val statesBuffer = ListBuffer[State]()
+  /** Select the state for the next clock edge. Only available within an on block. */
+  def goto[S <: EnumType](target: S)(using scope: StateScope[S], sourceInfo: SourceInfo): Unit =
+    scope.transition(target)
 
-  def states: List[State] = statesBuffer.toList
+  /** Context supplied to a StateMachine definition block. */
+  final class Builder[S <: EnumType] private[StateMachine] (machine: StateMachine[S]) {
+    private val defined     = mutable.HashSet.empty[BigInt]
+    private var open        = true
+    private var inStateBody = false
 
-  // The default state when the FSM is reset. The FSM will transit from this state to the entry point when startFsm() is
-  // called.
-  val stateBoot: State = new State {
-    if (autoStart) {
-      whenIsActive {
-        startFsm()
+    private[StateMachine] def define(s: S)(body: StateScope[S] ?=> Unit)(using sourceInfo: SourceInfo): Unit = {
+      val location = sourceInfo.makeMessage(value => s" $value")
+      require(open, s"StateMachine definition has already finished$location.")
+      require(!inStateBody, s"StateMachine on blocks must not be nested$location.")
+      machine.checkState(s)
+      require(defined.add(s.litValue), s"StateMachine state $s is defined more than once$location.")
+
+      val scope = new StateScope[S](machine)
+      inStateBody = true
+      try {
+        when(machine.stateReg === s) {
+          body(using scope)
+        }
+      } finally {
+        scope.close()
+        inStateBody = false
       }
     }
+
+    private[StateMachine] def close(): Unit = open = false
   }
 
-  def stateEntry: State = {
-    val entries = states.filter(_.isInstanceOf[EntryPoint])
-    assert(entries.length == 1, s"There should be 1 entry point in the FSM, but got ${entries.length}.")
-    entries.head
-  }
+  /** Context supplied only while elaborating an on block. */
+  final class StateScope[S <: EnumType] private[StateMachine] (machine: StateMachine[S]) {
+    private var open = true
 
-  var stateToUInt: Map[State, UInt] = _
-
-  val stateCurr: UInt = Wire(UInt()).dontTouch
-  val stateNext: UInt = Wire(UInt()).dontTouch
-
-  /** Transits to the specified state. */
-  def goto(state: State): Unit = {
-    stateNext := stateToUInt(state)
-  }
-
-  /** Returns whether this FSM is in the specified state. */
-  def isActive(state: State): Bool = {
-    stateCurr === stateToUInt(state)
-  }
-
-  /** Returns whether this FSM is NOT in the specified state. */
-  def isInactive(state: State): Bool = {
-    stateCurr =/= stateToUInt(state)
-  }
-
-  /** Returns whether this FSM is entering the specified state. */
-  def isEntering(state: State): Bool = {
-    stateNext === stateToUInt(state) && stateCurr =/= stateToUInt(state)
-  }
-
-  /** Returns whether this FSM is exiting the specified state. */
-  def isExiting(state: State): Bool = {
-    stateNext =/= stateToUInt(state) && stateCurr === stateToUInt(state)
-  }
-
-  /** Add a state to the FSM. This method is automatically called by the constructor of [[State]]. */
-  def register(state: State): Unit = {
-    statesBuffer += state
-  }
-
-  /** Transit to the entry point state. */
-  def startFsm(): Unit = {
-    goto(stateEntry)
-  }
-
-  /** Transit back to the BOOT state. */
-  def finishFsm(): Unit = {
-    goto(stateBoot)
-  }
-
-  private var isGenerated: Boolean = false
-
-  def delayedInit(body: => Unit): Unit = {
-    body
-
-    // TODO: It is a workaround to avoid FSM generating before States are ready.
-    //       I don't know why the delayedInit is called multiple times.
-    if (states.length <= 1 || isGenerated) return
-    isGenerated = true
-
-    stateToUInt = defaultEncoding.stateToUInt(states)
-
-    stateCurr := RegNext(stateNext, stateToUInt(stateBoot))
-    stateNext := stateCurr
-
-    for (state <- states) {
-      when(isActive(state)) {
-        state.tasksWhenIsActive.foreach(_())
-      }
-      when(isInactive(state)) {
-        state.tasksWhenIsInactive.foreach(_())
-      }
-      when(isEntering(state)) {
-        state.tasksWhenIsEntering.foreach(_())
-      }
-      when(isExiting(state)) {
-        state.tasksWhenIsExiting.foreach(_())
-      }
+    private[StateMachine] def transition(target: S)(using sourceInfo: SourceInfo): Unit = {
+      require(
+        open,
+        s"StateMachine goto must execute while elaborating its on block${sourceInfo.makeMessage(value => s" $value")}.",
+      )
+      machine.checkState(target)
+      machine.stateNext := target
     }
+
+    private[StateMachine] def close(): Unit = open = false
   }
 }
+
+export StateMachine.{goto, on}

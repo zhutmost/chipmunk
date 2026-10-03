@@ -1,8 +1,9 @@
 package mylib
 
-import chipmunk._
 import chisel3._
 import circt.stage._
+
+import chipmunk._
 
 class MyIncrement extends Module {
   val io = IO(new Bundle {
@@ -19,7 +20,7 @@ class MyChipTop extends RawModule {
   val coreSink   = IO(Output(UInt(3.W)))
 
   implicit val clockSys: Clock      = coreClock
-  implicit val resetSys: AsyncReset = AsyncResetSyncDessert.withSpecificClockDomain(clockSys, coreReset)
+  implicit val resetSys: AsyncReset = AsyncResetSync.withSpecificClockDomain(clockSys, coreReset)
 
   withClockAndReset(clockSys, resetSys) {
     val uIncrement = Module(new MyIncrement)
@@ -28,7 +29,7 @@ class MyChipTop extends RawModule {
   }
 }
 
-object RtlEmitter extends App {
+@main def rtlEmitter(): Unit = {
   val targetDir = "generate/hw"
 
   val chiselArgs  = Array(f"--target-dir=$targetDir", "--split-verilog")
