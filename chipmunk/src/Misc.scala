@@ -4,9 +4,6 @@ import chisel3.*
 import chisel3.experimental.SourceInfo
 import chisel3.util.PriorityMux
 
-/** A Bundle with no payload fields. Useful as a typed empty payload. */
-final class EmptyBundle extends Bundle
-
 /** Alias for [[chisel3.util.PriorityMux]] with additional overloads accepting an explicit default.
   *
   * When a default is provided, it is selected if no select signal is asserted.
