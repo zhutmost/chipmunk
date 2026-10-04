@@ -11,6 +11,8 @@ Ready/Valid 握手协议由三部分信号组成：
 - `ready`：表示数据可被消费，即下游已经准备好接收数据；
 - `bits`（即 `payload`）：表示数据本身。
 
+`StreamIO` 要求生产者在 `valid && !ready` 时保持 `valid` 和 `bits`，直到事务完成握手。复位或明确约定的 flush 可以取消事务，但需要与连接的模块协调。Chisel 的 `DecoupledIO` 本身没有这一稳定性保证；`Stream.from` 和 `toStream` 只负责接线，不会增加缓冲或自动实现该保证。
+
 其中，`valid` 和 `bits` 信号由上游产生，`ready` 信号由下游产生。当 `valid` 和 `ready` 信号同时有效时，`bits` 信号被传递，即数据被消费。利用这一协议，我们可以将数据流的生产和消费解耦：上游模块只需要在准备好数据后将 `valid` 和 `bits` 信号置为有效，而无需关心下游模块内部的状态；而下游模块只需要在准备好接收数据后将 `ready` 信号置为有效，当 `valid` 和 `ready` 信号同时有效时取走 `bits` 数据。通过使用 Ready/Valid 握手协议，开发者可以将注意力集中在自己负责的电路逻辑上，而无需过度关心其他模块的内部实现，从而提高开发效率。
 
 需要注意的是，为了避免组合逻辑环路，我们要求 `valid`（及 `bits`）和 `ready` 信号不能同时依赖对方的当前状态。因此，在 Chipmunk（和其他绝大多数数字电路设计）中，我们约定 `valid` 不允许依赖于 `ready` 的当前状态，即上游模块不允许根据下游模块此刻是否 `ready` 来决定当前周期是否将 `valid` 置为有效。简单地说，用于 `valid` 产生的组合逻辑表达式中不能出现下游模块的 `ready` 信号。
@@ -30,7 +32,7 @@ Chisel 提供了 `DecoupledIO` 和 `IrrevocableIO` 两个 Ready/Valid 握手协�
 
 很显然，上述 API 不足以应付实际的设计需求。
 
-Chipmunk 在 `chisel3.ReadyValidIO` 的基础上提供了 `chipmunk.StreamIO`，它继承自 `chisel3.ReadyValidIO`，并提供了一系列常用的 API 和特性，包括：
+Chipmunk 提供的 `chipmunk.stream.StreamIO` 继承自 `chisel3.util.DecoupledIO`，并提供了一系列常用的 API 和特性，包括：
 - 一系列类似`fire` 的语法糖，展现数据传输的不同状态；
 - 符号化的连接方法，类似 `a >> b >-> c`，可以很容易地看出数据的流向；
 - 针对 `bits` 的一系列操作，包括 Map、Cast 等；
@@ -50,9 +52,11 @@ val myStream = Wire(Stream(UInt(32.W)))
 - 创建一个 `StreamIO`，其 `payload` 类型和另一个 `DecoupledIO` 的 `bits` 一致：
 ```scala
 val myDecoupled = Wire(Decoupled(UInt(32.W)))
-val myStream = Wire(Stream(myDecoupled))
+val myStream = Wire(Stream.like(myDecoupled))
 ```
 请注意这里 `myStream` 不会与 `myDecoupled` 有任何电路连接（比如共享 `bits`），而是会创建一个新的 `UInt` 作为 `payload`。
+
+如果需要连接现有接口，可以使用 `Stream.from(myDecoupled)` 或 `myDecoupled.toStream`。其生产者必须已经遵守上述稳定性约定。
 
 - 创建一个空的 `StreamIO`（即其 `payload` 类型为 `EmptyBundle`）：
 ```scala
@@ -183,8 +187,79 @@ StreamFork 可以将一个上游 `StreamIO` 分叉成多个下游 `StreamIO`，�
 
 StreamJoin 可以将多个上游 `StreamIO` 合并成一个下游 `StreamIO`，当且仅当所有上游 `StreamIO` 的 `valid` 都有效时，才会发生握手。
 
-在 `object StreamFork`/`object StreamJoin` 中，Chipmunk 提供了多个接口略有差别的方法。用户可以阅读代码中的注释，根据自己的需求选择合适的方法。
+Fork 不保存 payload，输入生产者必须保持当前事务，直到所有分支接收完毕。它保证每个输出分别接收一次，并不保证所有输出在同一周期接收。若希望上游先握手、后续再逐步分发，可以在 Fork 前增加 Queue。
 
-### StreamMux/Demux/...
+```scala
+val copies = StreamFork.duplicate(input, 3)
+val elements = StreamFork.vecSplit(vectorInput)
+val handshakeOnly = StreamFork.withoutPayload(input, 2)
+```
 
-TODO
+`vecSplit` 同时支持 `Vec` 和 `MixedVec`；前者返回 `Vec`，后者返回保留各元素类型及位宽的 `IndexedSeq`。`vecMap` 可以先用一个 elaboration 回调生成 `MixedVec`，再拆分。
+
+Join 按输入事务的位置配对，不检查业务上的事务 ID，也不保存早到的 payload。`withoutPayload` 只合并握手；`vecMerge` 将同类型 payload 按输入顺序合成 `Vec`；`mixedVecMerge` 将不同类型或位宽的 payload 合成 `MixedVec`。
+
+```scala
+val words = StreamJoin.vecMerge(Seq(a, b, c))
+val mixed = StreamJoin.mixedVecMerge(address, data)
+
+val command = StreamJoin.map(address, data) { (addr, value) =>
+  val result = Wire(new WriteCommand)
+  result.addr := addr
+  result.data := value
+  result
+}
+```
+
+`map` 的回调只在 elaboration 时执行一次，返回硬件 payload；输入同时握手，输出等待期间保持稳定。Fork 和 Join 都允许一个端口，拒绝零端口。
+
+`FlowFork` 提供对应的 `duplicate`、`withoutPayload`、`vecSplit` 和 `vecMap`，但 Flow 无背压，每个输出都必须接收每一个有效周期。
+
+### StreamMux/StreamDemux
+
+Mux 从多个输入中选择一个；Demux 把输入送到一个输出。两者都不保存 payload，支持单端口和非二次幂端口数。
+
+```scala
+val selected = StreamMux(select, inputs)
+val routed = StreamDemux(input, destination, num = 3)
+```
+
+选择参数有两种明确的语义：
+
+| 参数类型 | 语义 |
+|----------|------|
+| `UInt` | 外部选择信号；一旦向下游提供事务但未被接收，组件会锁定当前来源或目的端，直到该事务完成。|
+| `StreamIO[UInt]` | 每个数据事务配一个选择 token；选择 token 与相应数据同时完成握手。|
+
+流式选择参数不用于更新配置寄存器。Mux 的 token 在被选输入有效且输出接收时消费；Demux 的 token 与输入数据在目的端接收时一起消费。两路生产者都必须保持等待中的事务。
+
+越界选择会使输出无效并阻塞输入，不会截断选择值的高位或误送到其他端口。越界 token 不会被消费，需要上层保证 token 合法；复位可以取消等待中的非法 token。
+
+需要显式模块时，可以使用 `new StreamMux(gen, num)` 或 `new StreamDemux(gen, num)`。模块形式使用外部 `UInt` 选择信号。
+
+### StreamArbiter
+
+```scala
+val roundRobin = StreamArbiter.roundRobin(Seq(a, b, c))
+val priority = StreamArbiter.lowerFirst(Seq(a, b, c))
+```
+
+两种仲裁器都没有额外流水延迟。下游等待时保持已提供的来源，直到完成握手；此时新出现的高优先级请求不能替换等待中的事务。
+
+`lowerFirst` 优先选择下标较小的输入；`roundRobin` 在输出握手时更新轮询指针。轮询的 last grant 复位为零，与 Chisel `RRArbiter(initLastGrant = true)` 一致：多个输入都有效时，复位后的首次选择优先从输入一开始。一个输入直接通过，零输入非法。
+
+`StreamFlowArbiter(stream, flow)` 返回无背压的 Flow，并优先选择 Flow。Flow 有效时阻塞 Stream；输出消费者必须接收每个有效周期。
+
+### StreamQueue
+
+`input.queue(...)` 和 `StreamQueue(input, ...)` 都复用 Chisel Queue。独立工厂允许传入 `ReadyValidIO`，并返回 `StreamIO`：
+
+```scala
+val buffered = StreamQueue(input, entries = 4)
+val pipeline = StreamQueue(input, entries = 1, pipe = true)
+val flushable = StreamQueue(input, entries = 4, flush = Some(cancel))
+```
+
+`pipe=true` 允许满队列在出队的同一周期接受输入，会组合连接 ready 路径；`flow=true` 允许输入在队列为空时直接到达输出。`useSyncReadMem=true` 使用同步读存储。
+
+零深度只增加接线，生产者必须已经满足 Stream 协议；负深度和零深度 flush 在 elaboration 时被拒绝。Flush 在时钟沿取消所有缓冲事务，包括尚未完成握手的输出，因此使用方必须协调取消语义。
