@@ -43,6 +43,8 @@ Acorn 是用于模块内部地址访问的轻量接口，适合配置寄存器�
 | `AcornCrossbar.scala` | 每 master 一个 Demux、每 slave 一个 Mux，并完成地址转换 |
 | `AcornErrorPoint.scala` | 可独立实例化的错误响应端点 |
 
+配置寄存器端点可使用 [RegBank](regbank.md)。
+
 Mux 的来源 FIFO 保存命令由哪个 master 发出；Demux 的目标 FIFO 保存命令发往哪个 slave。
 它们在命令握手时记录路由，在相应响应握手时移除记录。不同 slave 独立仲裁，可以同时接受不同 master 的访问。
 
