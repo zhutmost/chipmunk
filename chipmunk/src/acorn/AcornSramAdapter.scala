@@ -8,7 +8,7 @@ enum AcornSramPortMode {
   case SinglePort, OneReadOneWrite
 }
 
-/** SRAM geometry, fixed read latency, and response capacities. */
+/** SRAM geometry, fixed read latency, and outstanding transaction capacities. */
 final case class AcornSramConfig(
   params: AcornParams,
   numWords: BigInt,
@@ -25,8 +25,10 @@ final case class AcornSramConfig(
 
 /** Connect an Acorn slave to a synchronous, byte-masked 1RW or 1R1W SRAM.
   *
-  * The SRAM must accept an enabled access each cycle, commit writes at that clock edge, and return each read's value
-  * after exactly `readLatency` cycles. Read responses add one FIFO cycle. Conflicting reads/writes are arbitrated
+  * Two-entry read/write command queues isolate the bus from SRAM control, without combinational bypass or ready
+  * propagation. A command takes at least one cycle to reach SRAM; each port can still sustain one access per cycle. The
+  * SRAM must accept an enabled access each cycle, commit writes at that clock edge, and return each read's value after
+  * exactly `readLatency` cycles. Read responses add one FIFO cycle. Conflicting reads/writes are arbitrated
   * round-robin; a 1R1W SRAM can access different words concurrently. Addresses are zero-based local byte offsets.
   * Unaligned/out-of-range accesses return errors without accessing SRAM. Zero-strobe writes succeed without writing.
   * Reset cancels outstanding transactions but does not clear SRAM. The upstream master must not issue commands during
@@ -50,6 +52,28 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
     )
   })
 
+  // Reserve response capacity at bus acceptance, including commands still buffered here.
+  private val readCount  = RegInit(0.U(log2Ceil(BigInt(config.outstanding.read) + 1).W))
+  private val writeCount = RegInit(0.U(log2Ceil(BigInt(config.outstanding.write) + 1).W))
+  private val readSpace  = readCount < config.outstanding.read.U
+  private val writeSpace = writeCount < config.outstanding.write.U
+
+  private val readCommands = Module(
+    new Queue(new AcornRdCmdChannel(params.addrWidth), entries = 2, pipe = false, flow = false)
+  )
+  private val writeCommands = Module(
+    new Queue(new AcornWrCmdChannel(params.dataWidth, params.addrWidth), entries = 2, pipe = false, flow = false)
+  )
+  readCommands.io.enq.valid  := io.access.rd.cmd.valid && readSpace
+  readCommands.io.enq.bits   := io.access.rd.cmd.bits
+  io.access.rd.cmd.ready     := readCommands.io.enq.ready && readSpace
+  writeCommands.io.enq.valid := io.access.wr.cmd.valid && writeSpace
+  writeCommands.io.enq.bits  := io.access.wr.cmd.bits
+  io.access.wr.cmd.ready     := writeCommands.io.enq.ready && writeSpace
+
+  private val readCommand  = readCommands.io.deq
+  private val writeCommand = writeCommands.io.deq
+
   private val readResponses = Module(
     new Queue(new AcornRdRspChannel(params.dataWidth), entries = config.outstanding.read, pipe = false, flow = false)
   )
@@ -65,40 +89,35 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
   io.access.wr.rsp.bits       := writeResponses.io.deq.bits
   writeResponses.io.deq.ready := io.access.wr.rsp.ready
 
-  // Count both pending SRAM results and buffered responses before issuing another read.
-  private val readCount  = RegInit(0.U(log2Ceil(BigInt(config.outstanding.read) + 1).W))
-  private val readSpace  = readCount < config.outstanding.read.U
-  private val writeSpace = writeResponses.io.enq.ready
-
   private def addressError(address: UInt): Bool = {
     val aligned = (address & (params.bytesPerWord - 1).U) === 0.U
     !aligned || address >= config.sizeBytes.U
   }
 
-  private val readError      = addressError(io.access.rd.cmd.bits.addr)
-  private val writeError     = addressError(io.access.wr.cmd.bits.addr)
-  private val readWord       = io.access.rd.cmd.bits.addr >> log2Ceil(params.bytesPerWord)
-  private val writeWord      = io.access.wr.cmd.bits.addr >> log2Ceil(params.bytesPerWord)
+  private val readError      = addressError(readCommand.bits.addr)
+  private val writeError     = addressError(writeCommand.bits.addr)
+  private val readWord       = readCommand.bits.addr >> log2Ceil(params.bytesPerWord)
+  private val writeWord      = writeCommand.bits.addr >> log2Ceil(params.bytesPerWord)
   private val readNeedsSram  = !readError
-  private val writeNeedsSram = !writeError && io.access.wr.cmd.bits.strobe.orR
+  private val writeNeedsSram = !writeError && writeCommand.bits.strobe.orR
 
-  private val readCandidate  = readSpace && io.access.rd.cmd.valid
-  private val writeCandidate = writeSpace && io.access.wr.cmd.valid
+  private val readCandidate  = readCommand.valid
+  private val writeCandidate = writeResponses.io.enq.ready && writeCommand.valid
   private val samePortOrWord = if (singlePort) true.B else readWord === writeWord
   private val conflict       = readCandidate && writeCandidate && readNeedsSram && writeNeedsSram && samePortOrWord
   private val preferWrite    = RegInit(false.B)
 
-  io.access.rd.cmd.ready := readSpace && (!conflict || !preferWrite)
-  io.access.wr.cmd.ready := writeSpace && (!conflict || preferWrite)
+  readCommand.ready  := !conflict || !preferWrite
+  writeCommand.ready := writeResponses.io.enq.ready && (!conflict || preferWrite)
 
-  when(conflict && (io.access.rd.cmd.fire || io.access.wr.cmd.fire)) {
+  when(conflict && (readCommand.fire || writeCommand.fire)) {
     preferWrite := !preferWrite
   }
 
-  private val doRead    = io.access.rd.cmd.fire && readNeedsSram
-  private val doWrite   = io.access.wr.cmd.fire && writeNeedsSram
-  private val writeData = io.access.wr.cmd.bits.data.asTypeOf(Vec(params.bytesPerWord, UInt(8.W)))
-  private val writeMask = VecInit(io.access.wr.cmd.bits.strobe.asBools)
+  private val doRead    = readCommand.fire && readNeedsSram
+  private val doWrite   = writeCommand.fire && writeNeedsSram
+  private val writeData = writeCommand.bits.data.asTypeOf(Vec(params.bytesPerWord, UInt(8.W)))
+  private val writeMask = VecInit(writeCommand.bits.strobe.asBools)
   private val readData  = Wire(UInt(params.dataWidth.W))
 
   if (singlePort) {
@@ -122,14 +141,14 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
   }
 
   // Error reads use the same latency pipeline so they cannot overtake valid reads.
-  private val readReturned  = ShiftRegister(io.access.rd.cmd.fire, config.readLatency, false.B, true.B)
+  private val readReturned  = ShiftRegister(readCommand.fire, config.readLatency, false.B, true.B)
   private val returnedError = ShiftRegister(readError, config.readLatency, false.B, true.B)
 
   readResponses.io.enq.valid      := readReturned
   readResponses.io.enq.bits.data  := Mux(returnedError, 0.U, readData)
   readResponses.io.enq.bits.error := returnedError
 
-  writeResponses.io.enq.valid      := io.access.wr.cmd.fire
+  writeResponses.io.enq.valid      := writeCommand.fire
   writeResponses.io.enq.bits.error := writeError
 
   when(io.access.rd.cmd.fire =/= io.access.rd.rsp.fire) {
@@ -137,6 +156,14 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
       readCount := readCount + 1.U
     }.otherwise {
       readCount := readCount - 1.U
+    }
+  }
+
+  when(io.access.wr.cmd.fire =/= io.access.wr.rsp.fire) {
+    when(io.access.wr.cmd.fire) {
+      writeCount := writeCount + 1.U
+    }.otherwise {
+      writeCount := writeCount - 1.U
     }
   }
 

@@ -18,6 +18,8 @@ private object AcornSramAdapterSpecDut {
       val writeEnable = Output(Bool())
       val readWord    = Output(UInt(config.params.addrWidth.W))
       val writeWord   = Output(UInt(config.params.addrWidth.W))
+      val writeData   = Output(UInt(config.params.dataWidth.W))
+      val writeMask   = Output(UInt(config.params.bytesPerWord.W))
     })
 
     val adapter = Module(new AcornSramAdapter(config))
@@ -51,6 +53,8 @@ private object AcornSramAdapterSpecDut {
       io.writeEnable := source.enable && source.isWrite
       io.readWord    := source.address
       io.writeWord   := source.address
+      io.writeData   := source.writeData.asUInt
+      io.writeMask   := source.mask.get.asUInt
     } else {
       val readSource  = adapter.io.sram.readPorts(0)
       val writeSource = adapter.io.sram.writePorts(0)
@@ -69,6 +73,8 @@ private object AcornSramAdapterSpecDut {
       io.writeEnable := writeSource.enable
       io.readWord    := readSource.address
       io.writeWord   := writeSource.address
+      io.writeData   := writeSource.data.asUInt
+      io.writeMask   := writeSource.mask.get.asUInt
     }
   }
 }
@@ -95,6 +101,8 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
         port.wr.cmd.ready expect true.B
         dut.clock.step()
         port.wr.cmd.valid #= false.B
+        port.wr.rsp.valid expect false.B
+        dut.clock.step()
         port.wr.rsp.valid expect true.B
         port.wr.rsp.bits.error expect false.B
         port.rd.cmd.valid #= true.B
@@ -102,7 +110,7 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
         port.rd.cmd.ready expect true.B
         dut.clock.step()
         port.rd.cmd.valid #= false.B
-        dut.clock.step()
+        dut.clock.step(2)
         port.rd.rsp.valid expect true.B
         port.rd.rsp.bits.data expect data.U
         port.rd.rsp.bits.error expect false.B
@@ -135,6 +143,8 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
     port.cmd.ready expect true.B
     dut.clock.step()
     port.cmd.valid #= false.B
+    port.rsp.valid expect false.B
+    dut.clock.step()
     port.rsp.valid expect true.B
     port.rsp.bits.error expect false.B
     dut.clock.step()
@@ -169,7 +179,10 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
           }
           Write(address, BigInt(32, random), index % 16)
         }
-        val expectedReads  = mutable.Queue.empty[Result]
+        val expectedReads  = mutable.Queue.empty[Int]
+        val readResults    = Array.fill(reads.size)(Option.empty[Result])
+        val pendingReads   = mutable.Queue.empty[Int]
+        val pendingWrites  = mutable.Queue.empty[Write]
         val expectedWrites = mutable.Queue.empty[Boolean]
         var heldRead       = Option.empty[Result]
         var heldWrite      = Option.empty[Boolean]
@@ -201,8 +214,24 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
           val writeFire   = writeSent < writes.size && port.wr.cmd.ready.peek().litToBoolean
           val readEnable  = dut.io.readEnable.peek().litToBoolean
           val writeEnable = dut.io.writeEnable.peek().litToBoolean
-          readEnable shouldBe (readFire && valid(reads(readSent)))
-          writeEnable shouldBe (writeFire && valid(writes(writeSent).address) && writes(writeSent).strobe != 0)
+          if (readEnable) {
+            pendingReads.nonEmpty shouldBe true
+            val index = pendingReads.dequeue()
+            dut.io.readWord.peek().litValue shouldBe BigInt(reads(index) / 4)
+            readResults(index) = Some(Result(memory(reads(index) / 4), false))
+          }
+          if (writeEnable) {
+            pendingWrites.nonEmpty shouldBe true
+            val command = pendingWrites.dequeue()
+            dut.io.writeWord.peek().litValue shouldBe BigInt(command.address / 4)
+            dut.io.writeData.peek().litValue shouldBe command.data
+            dut.io.writeMask.peek().litValue shouldBe BigInt(command.strobe)
+            val index = command.address / 4
+            for (byte <- 0 until 4 if (command.strobe & (1 << byte)) != 0) {
+              val mask = BigInt(255) << (byte * 8)
+              memory(index) = (memory(index) & ~mask) | (command.data & mask)
+            }
+          }
           if (readEnable && writeEnable) {
             mode shouldBe AcornSramPortMode.OneReadOneWrite
             dut.io.readWord.peek().litValue should not be dut.io.writeWord.peek().litValue
@@ -211,7 +240,7 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
           if (port.rd.rsp.valid.peek().litToBoolean) {
             expectedReads.nonEmpty shouldBe true
             val current = Result(port.rd.rsp.bits.data.peek().litValue, port.rd.rsp.bits.error.peek().litToBoolean)
-            current shouldBe expectedReads.head
+            Some(current) shouldBe readResults(expectedReads.head)
             heldRead.foreach(_ shouldBe current)
             if (readReady) {
               expectedReads.dequeue()
@@ -234,21 +263,19 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
 
           if (readFire) {
             val address = reads(readSent)
-            expectedReads.enqueue(if (valid(address)) Result(memory(address / 4), false) else Result(0, true))
+            expectedReads.enqueue(readSent)
+            if (valid(address)) pendingReads.enqueue(readSent)
+            else readResults(readSent) = Some(Result(0, true))
             readSent += 1
           }
           if (writeFire) {
             val command = writes(writeSent)
             expectedWrites.enqueue(!valid(command.address))
-            if (valid(command.address)) {
-              val index = command.address / 4
-              for (byte <- 0 until 4 if (command.strobe & (1 << byte)) != 0) {
-                val mask = BigInt(255) << (byte * 8)
-                memory(index) = (memory(index) & ~mask) | (command.data & mask)
-              }
-            }
+            if (valid(command.address) && command.strobe != 0) pendingWrites.enqueue(command)
             writeSent += 1
           }
+          readSent - readReceived should be <= capacity
+          writeSent - writeReceived should be <= capacity
           dut.clock.step()
           cycle += 1
         }
@@ -256,6 +283,8 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
         writeReceived shouldBe writes.size
         expectedReads shouldBe empty
         expectedWrites shouldBe empty
+        pendingReads shouldBe empty
+        pendingWrites shouldBe empty
         dut.io.access.rd.cmd.valid #= false.B
         dut.io.access.wr.cmd.valid #= false.B
         dut.clock.step(latency + 4)
@@ -266,6 +295,117 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
   }
 
   for (mode <- AcornSramPortMode.values.toSeq) {
+    "AcornSramAdapter" should s"isolate SRAM signals from live bus inputs with $mode" in {
+      val config = AcornSramConfig(AcornParams(32, 4), 4, mode)
+      simulate(new AcornSramAdapterSpecDut.Harness(config)) { dut =>
+        init(dut)
+        val port = dut.io.access
+
+        def snapshot(): Seq[BigInt] = Seq(
+          dut.io.readEnable,
+          dut.io.writeEnable,
+          dut.io.readWord,
+          dut.io.writeWord,
+          dut.io.writeData,
+          dut.io.writeMask,
+          port.rd.cmd.ready,
+          port.wr.cmd.ready,
+        ).map(_.peek().litValue)
+
+        val idle = snapshot()
+        port.rd.cmd.valid #= true.B
+        port.rd.cmd.bits.addr #= 0.U
+        port.wr.cmd.valid #= true.B
+        port.wr.cmd.bits.addr #= 4.U
+        port.wr.cmd.bits.data #= 0x12345678.U
+        port.wr.cmd.bits.strobe #= 5.U
+        snapshot() shouldBe idle
+        dut.clock.step()
+        // Present subsequent commands while the buffered pair drives SRAM.
+        val issued = snapshot()
+        dut.io.readEnable expect true.B
+        dut.io.writeEnable expect (mode == AcornSramPortMode.OneReadOneWrite).B
+        dut.io.readWord expect 0.U
+        dut.io.writeData expect 0x12345678.U
+        dut.io.writeMask expect 5.U
+        for (index <- 0 until 8) {
+          port.rd.cmd.valid #= (index % 2 == 0).B
+          port.rd.cmd.bits.addr #= index.U
+          port.wr.cmd.valid #= (index % 2 == 1).B
+          port.wr.cmd.bits.addr #= (15 - index).U
+          port.wr.cmd.bits.data #= (BigInt("fedcba98", 16) + index).U
+          port.wr.cmd.bits.strobe #= index.U
+          port.rd.rsp.ready #= (index % 2 == 0).B
+          port.wr.rsp.ready #= (index % 2 == 1).B
+          snapshot() shouldBe issued
+        }
+        port.rd.cmd.valid #= false.B
+        port.wr.cmd.valid #= false.B
+        port.rd.rsp.ready #= true.B
+        port.wr.rsp.ready #= true.B
+        dut.clock.step(4)
+        port.rd.rsp.valid expect false.B
+        port.wr.rsp.valid expect false.B
+      }
+    }
+
+    "AcornSramAdapter" should s"reserve capacity at acceptance and isolate response backpressure with $mode" in {
+      val config = AcornSramConfig(AcornParams(32, 4), 4, mode, 1, AcornOutstanding(1, 1))
+      simulate(new AcornSramAdapterSpecDut.Harness(config)) { dut =>
+        init(dut)
+        write(dut, 0, 0x12345678)
+        val port = dut.io.access
+        port.rd.rsp.ready #= false.B
+        port.wr.rsp.ready #= false.B
+        var reads  = 0
+        var writes = 0
+        for (_ <- 0 until 12) {
+          port.rd.cmd.valid #= true.B
+          port.rd.cmd.bits.addr #= 0.U
+          port.wr.cmd.valid #= true.B
+          port.wr.cmd.bits.addr #= 4.U
+          port.wr.cmd.bits.data #= 0x44332211.U
+          port.wr.cmd.bits.strobe #= 15.U
+          if (port.rd.cmd.ready.peek().litToBoolean) reads += 1
+          if (port.wr.cmd.ready.peek().litToBoolean) writes += 1
+          dut.clock.step()
+        }
+        reads shouldBe 1
+        writes shouldBe 1
+        port.rd.cmd.valid #= false.B
+        port.wr.cmd.valid #= false.B
+        port.rd.cmd.ready expect false.B
+        port.wr.cmd.ready expect false.B
+        dut.io.readEnable expect false.B
+        dut.io.writeEnable expect false.B
+        // Releasing backpressure must not propagate through the queues in this cycle.
+        port.rd.rsp.ready #= true.B
+        port.wr.rsp.ready #= true.B
+        port.rd.cmd.ready expect false.B
+        port.wr.cmd.ready expect false.B
+        dut.io.readEnable expect false.B
+        dut.io.writeEnable expect false.B
+        var readResponses  = 0
+        var writeResponses = 0
+        for (_ <- 0 until 20) {
+          if (port.rd.rsp.valid.peek().litToBoolean) {
+            port.rd.rsp.bits.data expect 0x12345678.U
+            port.rd.rsp.bits.error expect false.B
+            readResponses += 1
+          }
+          if (port.wr.rsp.valid.peek().litToBoolean) {
+            port.wr.rsp.bits.error expect false.B
+            writeResponses += 1
+          }
+          dut.clock.step()
+        }
+        readResponses shouldBe reads
+        writeResponses shouldBe writes
+        port.rd.cmd.ready expect true.B
+        port.wr.cmd.ready expect true.B
+      }
+    }
+
     "AcornSramAdapter" should s"sustain one read per cycle with $mode" in {
       val config = AcornSramConfig(AcornParams(32, 4), 4, mode)
       simulate(new AcornSramAdapterSpecDut.Harness(config)) { dut =>
@@ -277,15 +417,16 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
           port.cmd.valid #= true.B
           port.cmd.bits.addr #= ((index % 4) * 4).U
           port.cmd.ready expect true.B
-          port.rsp.valid expect (index >= 2).B
-          if (index >= 2) {
-            port.rsp.bits.data expect data((index - 2) % 4).U
+          dut.io.readEnable expect (index >= 1).B
+          port.rsp.valid expect (index >= 3).B
+          if (index >= 3) {
+            port.rsp.bits.data expect data((index - 3) % 4).U
             port.rsp.bits.error expect false.B
           }
           dut.clock.step()
         }
         port.cmd.valid #= false.B
-        for (index <- 14 until 16) {
+        for (index <- 13 until 16) {
           port.rsp.valid expect true.B
           port.rsp.bits.data expect data(index % 4).U
           port.rsp.bits.error expect false.B
@@ -309,9 +450,26 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
         port.wr.cmd.bits.addr #= 0.U
         port.wr.cmd.bits.data #= BigInt("aabbccdd", 16).U
         port.wr.cmd.bits.strobe #= 15.U
+        port.rd.cmd.ready expect true.B
+        port.wr.cmd.ready expect true.B
+        dut.io.readEnable expect false.B
+        dut.io.writeEnable expect false.B
+        dut.clock.step()
+        port.rd.cmd.valid #= false.B
+        port.wr.cmd.valid #= false.B
         for (cycle <- 0 until 4) {
-          port.rd.cmd.ready expect (cycle % 2 == 0).B
-          port.wr.cmd.ready expect (cycle % 2 == 1).B
+          if (cycle == 0) {
+            // Keep both queues nonempty during the first three arbitration decisions.
+            port.rd.cmd.valid #= true.B
+            port.wr.cmd.valid #= true.B
+            port.rd.cmd.ready expect true.B
+            port.wr.cmd.ready expect true.B
+          } else {
+            port.rd.cmd.valid #= false.B
+            port.wr.cmd.valid #= false.B
+          }
+          dut.io.readEnable expect (cycle  % 2 == 0).B
+          dut.io.writeEnable expect (cycle % 2 == 1).B
           dut.clock.step()
         }
         port.rd.cmd.valid #= false.B
@@ -336,6 +494,7 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
       simulate(new AcornSramAdapterSpecDut.Harness(config)) { dut =>
         init(dut)
         write(dut, 0, 0x12345678)
+        write(dut, 8, 0x55667788)
         val port = dut.io.access
         port.rd.rsp.ready #= false.B
         port.wr.rsp.ready #= false.B
@@ -348,6 +507,14 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
         port.wr.cmd.bits.data #= 0x44332211.U
         port.wr.cmd.bits.strobe #= 15.U
         dut.clock.step()
+        port.rd.cmd.valid #= true.B
+        port.rd.cmd.bits.addr #= 8.U
+        port.wr.cmd.bits.addr #= 8.U
+        port.wr.cmd.bits.data #= BigInt("aabbccdd", 16).U
+        port.rd.cmd.ready expect true.B
+        port.wr.cmd.ready expect true.B
+        dut.clock.step()
+        port.rd.cmd.valid #= false.B
         port.wr.cmd.valid #= false.B
         dut.reset #= true.B
         dut.io.readEnable expect false.B
@@ -361,13 +528,13 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
         dut.clock.step(5)
         port.rd.rsp.valid expect false.B
         port.wr.rsp.valid expect false.B
-        for ((address, data) <- Seq(0 -> BigInt(0x12345678), 4 -> BigInt(0x44332211))) {
+        for ((address, data) <- Seq(0 -> BigInt(0x12345678), 4 -> BigInt(0x44332211), 8 -> BigInt(0x55667788))) {
           port.rd.cmd.valid #= true.B
           port.rd.cmd.bits.addr #= address.U
           port.rd.cmd.ready expect true.B
           dut.clock.step()
           port.rd.cmd.valid #= false.B
-          dut.clock.step(3)
+          dut.clock.step(4)
           port.rd.rsp.valid expect true.B
           port.rd.rsp.bits.data expect data.U
           port.rd.rsp.bits.error expect false.B
@@ -394,11 +561,15 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
       port.wr.cmd.bits.strobe #= 5.U
       port.rd.cmd.ready expect true.B
       port.wr.cmd.ready expect true.B
-      dut.io.readEnable expect true.B
-      dut.io.writeEnable expect true.B
+      dut.io.readEnable expect false.B
+      dut.io.writeEnable expect false.B
       dut.clock.step()
       port.rd.cmd.valid #= false.B
       port.wr.cmd.valid #= false.B
+      dut.io.readEnable expect true.B
+      dut.io.writeEnable expect true.B
+      port.wr.rsp.valid expect false.B
+      dut.clock.step()
       port.wr.rsp.valid expect true.B
       port.wr.rsp.bits.error expect false.B
       dut.clock.step()
@@ -416,7 +587,7 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
       port.rd.cmd.ready expect true.B
       dut.clock.step()
       port.rd.cmd.valid #= false.B
-      dut.clock.step()
+      dut.clock.step(2)
       port.rd.rsp.valid expect true.B
       port.rd.rsp.bits.data expect BigInt("55bb77dd", 16).U
       port.rd.rsp.bits.error expect false.B
