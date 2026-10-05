@@ -42,6 +42,7 @@ Acorn 是用于模块内部地址访问的轻量接口，适合配置寄存器�
 | `AcornDemux.scala` | 一个 master 到多个 slave 的命令分发和响应排序 |
 | `AcornCrossbar.scala` | 每 master 一个 Demux、每 slave 一个 Mux，并完成地址转换 |
 | `AcornErrorPoint.scala` | 可独立实例化的错误响应端点 |
+| `AcornSramAdapter.scala` | 字节掩码同步 SRAM 的 1RW / 1R1W 适配器及配置 |
 
 配置寄存器端点可使用 [RegBank](regbank.md)。
 
@@ -138,6 +139,49 @@ val errorPoint = Module(new AcornErrorPoint(
 
 每个已接受的读写命令都会产生一个 `error=true` 的响应，读响应的数据为零。
 
+## SRAM adapter
+
+`AcornSramAdapter` 的 `io.access` 是 Acorn slave，`io.sram` 是 Chisel 的
+`SRAMInterface[Vec[UInt]]`，每个 Vec 元素对应一个字节。支持一个读写口（1RW）或各一个读口、写口（1R1W）。
+SRAM 必须与 adapter 共用时钟、支持字节写掩码，并能每拍接受一次端口操作；写在使能的时钟沿完成，
+读数据在配置的 `readLatency` 拍后返回。
+
+```scala
+import chisel3.*
+import chisel3.util.SRAM
+import chipmunk.acorn.*
+
+val config = AcornSramConfig(
+  params = AcornParams(64, 16),
+  numWords = 8192,
+  portMode = AcornSramPortMode.SinglePort,
+  readLatency = 1,
+  outstanding = AcornOutstanding(read = 4, write = 4)
+)
+val adapter = Module(new AcornSramAdapter(config))
+val memory = SRAM.masked(
+  config.numWords,
+  Vec(config.params.bytesPerWord, UInt(8.W)),
+  numReadPorts = 0,
+  numWritePorts = 0,
+  numReadwritePorts = 1
+)
+adapter.io.sram <> memory
+// adapter.io.access <> master
+```
+
+1R1W 使用 `AcornSramPortMode.OneReadOneWrite`，对应 SRAM 的端口数量为 `(1, 1, 0)`。
+上述 `SRAM.masked` 默认读延迟为一拍；替换为其他 SRAM 后端时，`readLatency` 必须与其实际延迟一致。
+SRAM 容量为 `numWords * bytesPerWord`，adapter 地址是从零开始的局部字节偏移。越界或未对齐的命令返回错误，
+不访问 SRAM；合法的零 strobe 写不修改 SRAM，仍返回成功响应。
+
+读命令接受时为返回数据预留空间，直到 `rd.rsp.fire` 才释放；响应 FIFO 增加一拍读延迟。
+读写各自按序返回。1RW 的读写请求，以及 1R1W 的同字地址读写请求，采用 round-robin 仲裁；
+1R1W 的不同地址读写可同时执行。写响应表示 SRAM 写已完成，而不是仅接收了命令。
+
+reset 只用于状态复位，不门控握手或 SRAM 使能。上游在复位期间不得发出命令，并应与 adapter 一致复位。
+复位取消在途事务，但不清除 SRAM 内容，也不撤销已经执行的写。
+
 ## 时序和组合约束
 
 - 每个 master 的读响应按其读命令顺序返回，写响应按写命令顺序返回；读写之间和不同 master 之间没有全局顺序。
@@ -168,5 +212,6 @@ mill chipmunk.test.testOnly \
   chipmunk.test.acorn.AcornConfigSpec \
   chipmunk.test.acorn.AcornMuxSpec \
   chipmunk.test.acorn.AcornDemuxSpec \
-  chipmunk.test.acorn.AcornCrossbarSpec
+  chipmunk.test.acorn.AcornCrossbarSpec \
+  chipmunk.test.acorn.AcornSramAdapterSpec
 ```
