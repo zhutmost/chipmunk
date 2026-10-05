@@ -75,7 +75,7 @@ final class AxiReadDataChannel(val params: AxiParams) extends Bundle {
 }
 
 /** AMBA4 AXI IO bundle. */
-final class AxiIO(val params: AxiParams) extends Bundle with IsMasterSlave {
+final class AxiIO(val params: AxiParams) extends Bundle with IsMasterSlave with HasAxiVerilogIO {
   def this(dataWidth: Int, addrWidth: Int, idWidth: Int = 0, hasQos: Boolean = false, hasRegion: Boolean = false) =
     this(AxiParams(dataWidth, addrWidth, idWidth, hasQos, hasRegion))
 
