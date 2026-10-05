@@ -36,7 +36,7 @@ final class AxiLiteReadDataChannel(val params: AxiLiteParams) extends Bundle {
 }
 
 /** AMBA4 AXI-Lite IO bundle. */
-final class AxiLiteIO(val params: AxiLiteParams) extends Bundle with IsMasterSlave {
+final class AxiLiteIO(val params: AxiLiteParams) extends Bundle with IsMasterSlave with HasAxiVerilogIO {
   def this(dataWidth: Int, addrWidth: Int) =
     this(AxiLiteParams(dataWidth, addrWidth))
 
