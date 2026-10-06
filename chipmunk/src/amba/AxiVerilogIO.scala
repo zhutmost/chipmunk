@@ -4,7 +4,6 @@ package amba
 import java.util.Locale
 
 import chisel3.Record
-import chisel3.experimental.SourceInfo
 
 /** Shared leaf naming for AXI and AXI-Lite. */
 private[amba] trait HasAxiVerilogIO extends HasVerilogIO {
