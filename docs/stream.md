@@ -1,12 +1,15 @@
 # 🐿️ DecoupledIO 增强版之 StreamIO
 
-在数字电路设计中，我们经常使用 Ready/Valid 握手协议来解耦数据流，Chisel 提供了 `DecoupledIO` 用以实现这一协议。然而，`DecoupledIO` 仅是一个预置的 `Bundle`，缺少与之配套的一系列常用组件（例如寄存器切片、Mux/Demux 等），此外它也未能搭配 `chipmunk.IsMasterSlave`。`chipmunk` 为 `DecoupledIO` 提供了一个“威力加强版”的 Ready/Valid 握手协议——`chipmunk.StreamIO`。
+在数字电路设计中，我们经常使用 Ready/Valid 握手协议来解耦数据流，Chisel 提供了 `DecoupledIO` 用以实现这一协议。然而，`DecoupledIO` 仅是一个预置的 `Bundle`，缺少与之配套的一系列常用组件（例如寄存器切片、Mux/Demux 等），此外它也未能搭配 `chipmunk.IsMasterSlave`。`chipmunk` 为 `DecoupledIO` 提供了一个“威力加强版”的 Ready/Valid 握手协议——`chipmunk.stream.StreamIO`。
+
+使用 `import chipmunk.stream.*`，角色包装用 `import chipmunk.*`。以下硬件片段位于模块内，并导入 `chisel3.*` / `chisel3.util.*`。`Stream(...)` 和 `Flow(...)` 工厂创建的是未绑定类型，需放入 IO/Wire/Reg；`from` 工厂则创建已连接的 Wire。
 
 ## Ready/Valid 握手协议
 
 ![Ready/Valid Interface](./assets/stream-ready-valid-protocol.png)
 
 Ready/Valid 握手协议由三部分信号组成：
+
 - `valid`：表示数据有效，即上游数据已经准备好，可以被消费；
 - `ready`：表示数据可被消费，即下游已经准备好接收数据；
 - `bits`（即 `payload`）：表示数据本身。
@@ -23,16 +26,18 @@ Ready/Valid 握手协议由三部分信号组成：
 
 ### Why?
 
-Chisel 提供了 `DecoupledIO` 和 `IrrevocableIO` 两个 Ready/Valid 握手协议的 `Bundle` 实现，它们都继承自 `chisel3.ReadyValidIO`。Chisel 并未为这两个接口提供太多 API，基本上只有：
+Chisel 提供了 `DecoupledIO` 和 `IrrevocableIO` 两个 Ready/Valid 握手协议的 `Bundle` 实现，它们都继承自 `chisel3.util.ReadyValidIO`。Chisel 并未为这两个接口提供太多 API，基本上只有：
+
 - `def fire: Bool = ready && valid`，表示当前周期是否发生了数据传输；
 - `class Queue`，以 `ReadyValidIO` 为接口的同步 FIFO；
-- `def map[T](f: T => T2): T`，用于对 `bits` 进行变换。
+- `map(f)`，用于变换 `bits`；Chipmunk 的重载保留 `StreamIO` 返回类型。
 
 `IrrevocableIO` 其实在实现上 `DecoupledIO` 并无区别，只是约定它的 `bits` 在 `valid` 有效但 `ready` 无效时不会改变，即数据不可撤回。两者的实际差别有赖于具体模块中的电路实现。
 
 很显然，上述 API 不足以应付实际的设计需求。
 
 Chipmunk 提供的 `chipmunk.stream.StreamIO` 继承自 `chisel3.util.DecoupledIO`，并提供了一系列常用的 API 和特性，包括：
+
 - 一系列类似`fire` 的语法糖，展现数据传输的不同状态；
 - 符号化的连接方法，类似 `a >> b >-> c`，可以很容易地看出数据的流向；
 - 针对 `bits` 的一系列操作，包括 Map、Cast 等；
@@ -62,7 +67,7 @@ val myStream = Wire(Stream.like(myDecoupled))
 ```scala
 val myStream = Wire(Stream.empty)
 ```
-空的 `StreamIO` 一般用于声明时没有确定 `payload` 类型的情况，后续可以搭配 `payloadReplace` 等 API 赋予具体的 `payload`。
+空的 `StreamIO` 传递不带 payload 的事件 token。`payloadReplace` 可以派生具有新 payload 类型的 Stream，但不会更改原接口的静态类型。
 
 #### 流控与状态指示
 
@@ -83,6 +88,8 @@ val myStream = Wire(Stream.empty)
 | `x.throwWhen(cond)`    | 当 `cond` 为 `True` 时，数据传输会被丢弃，即上游模块发起的数据传输都会成功握手，但下游模块不会收到相应的数据。 |
 | `x.takeWhen(cond)`     | 相当于 `x.throwWhen(!cond)`                                        |
 
+上述条件没有内部锁存。在输出 `valid && !ready` 期间，`cond` 必须保持不变，否则可能撤回已经提供的事务。
+
 #### Payload 变换
 
 ![StreamIO Payload Operation](./assets/stream-payload-operation.png)
@@ -95,25 +102,25 @@ def payloadReplace[T2 <: Data](p: T2): StreamIO[T2]
 def payloadCast[T2 <: Data](gen: T2, checkWidth: Boolean = false): StreamIO[T2]
 ```
 
-上述方法会返回一个新的 `StreamIO`，其 `payload` 会变成变换后、类型为 `T2` 的新信号，同时其 `ready` 和 `valid` 信号会连接到当前 `StreamIO` 的 `ready` 和 `valid` 信号。
+上述方法会返回一个新的 `StreamIO`，其 `payload` 为变换后的硬件信号，握手时序不变。回调只在 elaboration 时执行一次，返回值必须是硬件；替换/映射后的 payload 在输出等待期间也必须保持稳定。
 
 - `payloadMap` 可以将函数 `f` 作用于 `payload`，比如：
 ```scala
 val streamOld = Wire(Stream(UInt(32.W)))
-val StreamNew = streamOld.payloadMap(_ + 1.U)
+val streamNew = streamOld.payloadMap(_ + 1.U)
 ```
 
 - `payloadReplace` 会将 `payload` 替换为 `p`，相当于 `payloadMap(_ => p)`，比如：
 ```scala
 val streamOld = Wire(Stream(UInt(32.W)))
 val anotherBool = Wire(Bool())
-val StreamNew = streamOld.payloadReplace(anotherBool)
+val streamNew = streamOld.payloadReplace(anotherBool)
 ```
 
 - `payloadCast` 会对 `payload` 进行强制类型转换，相当于 `payloadMap(_.asTypeOf(gen))`，比如：
 ```scala
 val streamOld = Wire(Stream(UInt(32.W)))
-val StreamNew = streamOld.payloadCast(SInt(32.W), checkWidth = true)
+val streamNew = streamOld.payloadCast(SInt(32.W), checkWidth = true)
 ```
 其中参数 `checkWidth = true` 允许检查类型转换前后的位宽是否一致，如果不一致抛出异常。该参数默认为 `false`，即不会检查位宽，如果位宽不一致会自动截断或扩展。
 
@@ -127,30 +134,35 @@ val StreamNew = streamOld.payloadCast(SInt(32.W), checkWidth = true)
 ```scala
 val streamNew = streamOld.pipeForward()
 ```
-它在性能上不会引入吞吐下降（虽然会增加 1 周期延时），在面积上代价是 N + 1 个寄存器（N 是 `bits` 位宽）以及少量组合逻辑。
+最小延迟一拍，最高每拍传输一次，使用 N + 1 个寄存器位（N 是 payload 位宽）。默认 `bubbleCollapse=true`，空缓冲可在输出 ready 为低时接收输入；设为 false 时，输入 ready 跟随输出 ready，消费者必须能够主动提供 ready。
+
 - `pipeBackward`：后向寄存器切片，切断从下游模块到上游模块的 `ready` 通路的组合逻辑路径。
 ```scala
 val streamNew = streamOld.pipeBackward()
 ```
-它在性能上不会引入额外的延时和吞吐下降，在面积上代价是 N + 1 个寄存器（N 是 `bits` 位宽）、N 个 2:1 MUX 以及少量组合逻辑。
+最小延迟零拍，最高每拍传输一次，使用 N + 1 个寄存器位以及 N 位 2:1 MUX。缓存事务排出那一拍，输入仍保持阻塞；发生背压时可增加延迟。
+
 - `pipeAll`：双向寄存器切片，同时切断 `valid`、`bits`、`ready` 通路的组合逻辑路径。
 ```scala
 val streamNew = streamOld.pipeAll()
 ```
 相当于 `streamOld.pipeForward().pipeBackward()`，因此它会引入 2N + 2 个寄存器（N 是 `bits` 位宽）、N 个 2:1 MUX 以及少量组合逻辑。
+
 - `pipeSimple`：双向寄存器切片，同时切断 `valid`、`bits`、`ready` 通路的组合逻辑路径。
 ```scala
 val streamNew = streamOld.pipeSimple()
 ```
-它至多每隔一个周期握手一次，因此会引起最高可达一半的吞吐损失，但面积上只需要 N + 2 个寄存器以及少量的组合逻辑。与 `pipeAll` 相比，它的面积代价更小，但会引入额外的性能损失。
+它至多每隔一个周期握手一次，因此会引起最高可达一半的吞吐损失，但面积上只需要 N + 1 个寄存器位以及少量的组合逻辑。与 `pipeAll` 相比，它的面积代价更小，但会引入额外的性能损失。
+
 - `pipeValid`：仅切断 `valid` 通路的组合逻辑路径。
 ```scala
 val streamNew = streamOld.pipeValid()
 ```
-面积上仅需要 1 个寄存器和少量组合逻辑。
-- `pipPassThrough`：什么都不做，返回当前的 `StreamIO`。
+输出 valid 在首次观察到输入 valid 后一拍置位；输入和输出在同一拍握手，最高每两拍一次。仅使用一个 valid 寄存器，不保存 payload，因此依赖输入生产者保持事务。
+
+- `pipePassThrough`：什么都不做，返回当前的 `StreamIO`。
 ```scala
-val streamNew = streamOld.pipPassThrough()
+val streamNew = streamOld.pipePassThrough()
 ```
 
 #### 符号化连接
@@ -172,7 +184,7 @@ val streamNew = streamOld.pipPassThrough()
 
 借助 `<<`、`>>` 等流操作符，我们可以实现可读性较强的 `StreamIO` 连接甚至级连，比如：
 ```scala
-val s1 = Stream(UInt(8.W))
+val s1 = Wire(Stream(UInt(8.W)))
 s1 <-< uAnotherModule.io.outStream
 s1.haltWhen(somethingEnable) >> uSomeModule.io.inStream
 ```
@@ -185,7 +197,7 @@ Chipmunk 包括了一系列 `StreamIO` 的配套组件。
 
 StreamFork 可以将一个上游 `StreamIO` 分叉成多个下游 `StreamIO`，每个下游 `StreamIO` 会分别完成仅一次握手，上游 `StreamIO` 会在所有下游 `StreamIO` 完成握手后才完成握手。为了提高性能，每个下游 `StreamIO` 是否握手是独立进行的，当它 `ready` 有效时即完成握手，而不需要等到所有下游 `StreamIO` 的 `ready` 都有效。
 
-StreamJoin 可以将多个上游 `StreamIO` 合并成一个下游 `StreamIO`，当且仅当所有上游 `StreamIO` 的 `valid` 都有效时，才会发生握手。
+StreamJoin 可以将多个上游 `StreamIO` 合并成一个下游 `StreamIO`，所有上游 `StreamIO` 的 `valid` 都有效，且下游 `ready` 有效时，各输入与输出同时握手。
 
 Fork 不保存 payload，输入生产者必须保持当前事务，直到所有分支接收完毕。它保证每个输出分别接收一次，并不保证所有输出在同一周期接收。若希望上游先握手、后续再逐步分发，可以在 Fork 前增加 Queue。
 
@@ -263,3 +275,39 @@ val flushable = StreamQueue(input, entries = 4, flush = Some(cancel))
 `pipe=true` 允许满队列在出队的同一周期接受输入，会组合连接 ready 路径；`flow=true` 允许输入在队列为空时直接到达输出。`useSyncReadMem=true` 使用同步读存储。
 
 零深度只增加接线，生产者必须已经满足 Stream 协议；负深度和零深度 flush 在 elaboration 时被拒绝。Flush 在时钟沿取消所有缓冲事务，包括尚未完成握手的输出，因此使用方必须协调取消语义。
+
+
+### StreamDelay
+
+```scala
+val delayed = input.delayFixed(cycles = 3)
+val randomDelay = StreamDelay.random(input, maxCycles = 5, minCycles = 1)
+```
+
+延迟从空闲状态首次观察到输入 valid 的周期开始计算；输入和输出在同一周期握手，背压可进一步推迟完成。组件不保存 payload，不提前接收输入，生产者必须在整个等待期间保持 valid/bits。零延迟直接通过。
+
+显式模块 `new StreamDelay(gen, delayWidth)` 在每个事务开始时采样 `io.targetDelay`，后续变化只影响下一事务。随机延迟包含上下界，每次事务选择一次；序列在复位后重现，分布不保证均匀。复位返回空闲，仍然提供的事务重新计时。
+
+## FlowIO 与 Stream 转换
+
+`FlowIO` 继承 Chisel 的 valid-only 接口；每个 valid 为高的周期都是一次事务，接收方必须接收，没有 ready。使用 `Wire(Flow(gen))`、`Flow.empty`、`Flow.like(source)` / `Flow.from(source)`，类型绑定与 Stream 工厂规则相同。
+
+Flow 提供 payloadMap/Replace/Cast、pipeForward、stage、takeWhen/throwWhen；pipeForward 增加一拍延迟，最高每拍一次，仅 valid 复位。`RegFlow(gen)` 创建可赋值的 Flow 寄存器，仅 valid 复位为 false，bits 在未赋值时保持；它不自动转发输入。
+
+| 转换 | 行为 |
+| --- | --- |
+| `stream.asFlow` | 转发 valid/bits，不驱动 ready；等待中的 Stream 可能被 Flow 重复消费 |
+| `stream.toFlow()` | 只把已完成的 fire 转为 Flow valid，保留原 ready 驱动 |
+| `stream.toFlow(readyFreeRun = true)` | 同上，并将 Stream ready 驱动为 true |
+| `flow.asStream` | 直接转发 valid/bits，没有缓冲，也无法向 Flow 背压；输出 valid 时消费者必须 ready，才能避免丢失 |
+
+Flow 的 payloadMap/Replace/Cast 与 Stream 的 asFlow/toFlow 返回只读视图，不能把这些结果当作可写寄存器；需要可写存储时使用 RegFlow。
+
+源码：[stream 目录](../chipmunk/src/stream)。验证：
+
+```shell
+./mill chipmunk.test.testOnly \
+  chipmunk.test.StreamIOSpec \
+  chipmunk.test.FlowIOSpec \
+  chipmunk.test.StreamComponentsSpec
+```

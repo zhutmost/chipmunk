@@ -6,11 +6,11 @@
 
 `chisel3.Bits` 是 Chisel 的 `UInt`/`SInt`/`Bool` 等类型的父类，因此以下方法可以被这些类型的实例调用。
 
-这些方法是在 `chipmunk.AddMethodsToBits` 这个隐式类中实现的。
+这些方法由 [DataExtensions.scala](../chipmunk/src/DataExtensions.scala) 中的 Scala 3 extension 实现，通过 `import chipmunk.*` 导入。以下硬件片段位于 Chisel 模块内，并假定已经导入 `chisel3.*` 和 `chisel3.util.*`。
 
 ### `msBits`/`lsBits` — 获取信号的最高/低 n 比特
 
-`chisel3.Bits` 已提供了类似的方法 `x.head(n)` 和 `x.tail(n)`，其中前者是获取该信号的高 n 比特，后者是去掉该信号的高 n 比特（相当于 `x.head(x.getWidth - n)`）。这两个方法显然是来自函数式编程语言处理队列的习惯（~~Haskell 用户狂喜~~），但和绝大多数硬件工程师的习惯很不一致，且导致代码可读性降低。硬件工程师习惯用“某某信号的高N比特/低N比特”来对多比特信号进行切片。
+`chisel3.Bits` 已提供了类似的方法 `x.head(n)` 和 `x.tail(n)`，其中前者是获取该信号的高 n 比特，后者是去掉该信号的高 n 比特（保留低 `x.getWidth - n` 比特）。这两个方法显然是来自函数式编程语言处理队列的习惯（~~Haskell 用户狂喜~~），但和绝大多数硬件工程师的习惯很不一致，且导致代码可读性降低。硬件工程师习惯用“某某信号的高N比特/低N比特”来对多比特信号进行切片。
 
 因此，Chipmunk 提供了 `x.msBits(n)` 和 `x.lsBits(n)` 两组方法，它们的功能正如方法名（most/least significant bits）：前者 `x.msBits(n)` 和 `x.head(n)` 行为类似，后者 `x.lsBits(n)` 则是获取该信号的低 n 比特。
 
@@ -18,12 +18,15 @@
 
 - `def msBits(n: Int = 1): UInt`
 返回当前信号实例的最高 n 比特。
+
 - `def lsBits(n: Int = 1): UInt`
 返回当前信号实例的最低 n 比特。
+
 - `def msBit: Bool`
 返回当前信号实例的最高 1 比特，注意返回类型为 `Bool`，与 `msBits(n)` 不同。
+
 - `def lsBit: Bool`
-返回当前信号实例的最高 1 比特，注意返回类型为 `Bool`，与 `lsBits(n)` 不同。
+返回当前信号实例的最低 1 比特，注意返回类型为 `Bool`，与 `lsBits(n)` 不同。
 
 ### `filledOnes`/`filledZeros`/`filledWith`/`assignOnes`/`assignZeros` — 将信号的所有比特赋 1 或 0
 
@@ -43,19 +46,23 @@ x2 := ~ 0.U // ~ 0.S if SInt
 
 - `def filledWith(b: Bool): T`
   返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 `b`。
+
 - `def filledWith(b: Boolean): T`
   返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 b 的 `Bool` 字面量（即`b.B`）。
-- `def filledOnes(): T`
+
+- `def filledOnes: T`
   返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 `true.B`。
-- `def filledZeros(): T`
+
+- `def filledZeros: T`
   返回一个和当前信号相同类型的信号，但该信号的所有比特都是为 `false.B`。
 
 上述方法的共同特点是，它们会返回一个新的信号，不会改变当前信号的赋值。如果需要将一个信号的所有比特都赋值为全 0 或全 1，需要使用 `assignOnes`/`assignZeros`：
 
 - `def assignOnes(): Unit`：
-  将当前信号的所有比特都赋值为 `true.B`，相当于 `x := x.filledOnes()`。
+  将当前信号的所有比特都赋值为 `true.B`，相当于 `x := x.filledOnes`。
+
 - `def assignZeros(): Unit`：
-  将当前信号的所有比特都赋值为 `false.B`，相当于 `x := x.filledZeros()`。
+  将当前信号的所有比特都赋值为 `false.B`，相当于 `x := x.filledZeros`。
 
 ### `isOneHot` — 判断当前信号是否为独热码（one-hot）
 
@@ -65,11 +72,11 @@ x2 := ~ 0.U // ~ 0.S if SInt
 
 `chisel3.Data` 是 Chisel 的各硬件类型的父类。
 
-这些方法是在 `chipmunk.AddMethodsToData` 这个隐式类中实现的。
+这些方法同样由 `DataExtensions.scala` 的 Scala 3 extension 实现。
 
-### `dontTouch` — `dontTouch()` 的语法糖
+### `dontTouch` — `chisel3.dontTouch(x)` 的方法形式
 
-`chisel3.dontTouch` 可以阻止 Chisel 对该信号进行优化，常用于保留某中间信号的命名、保留与模块输出无关的电路等。这是一个单例对象，下面是 Chisel 提供的一个用法等例子：
+`chisel3.dontTouch` 可以阻止 Chisel 对该信号进行优化，常用于保留某中间信号的命名、保留与模块输出无关的电路等。这是一个单例对象，下面是 Chisel 提供的一个用法例子：
 ```scala
 class MyModule extends Module {
   val io = IO(new Bundle {
@@ -78,7 +85,7 @@ class MyModule extends Module {
   })
   io.b := io.a
   val dead = RegNext(io.a +% 1.U) // normally dead would be pruned by DCE
-  dontTouch(dead) // Marking it as such will preserve it
+  chisel3.dontTouch(dead) // Marking it as such will preserve it
 }
 ```
 
@@ -93,3 +100,34 @@ class MyModule extends Module {
   val dead = RegNext(io.a +% 1.U).dontTouch
 }
 ```
+
+
+## 显式默认值的优先选择
+
+`MuxPriority` 是 Chisel `PriorityMux` 的别名，并提供带显式 default 的重载；序列低下标、Bits 的低比特优先。
+
+```scala
+val result = MuxPriority(Seq(aValid -> aData, bValid -> bData), default = 0.U(8.W))
+val index = PriorityEncoderDefault(requests, default = 8.U(4.W))
+```
+
+上例假定 `aValid`/`bValid` 为 Bool、`aData`/`bData` 为 8 位 UInt、`requests` 为 8 位 UInt。没有选择信号为真时，带 default 的 Mux 返回 default。`PriorityEncoderDefault` 返回最低置位比特的下标；没有置位或输入为一个空 `Seq[Bool]` 时返回 default。返回 UInt 位宽包含 default 所需的位宽，因此用接口需要的显式宽度声明 default。
+
+不带 default 的 `MuxPriority` 沿用 Chisel 的行为，不额外承诺无命中时的结果。选择和数据序列应一一对应。
+
+源码：[MuxPriority.scala](../chipmunk/src/MuxPriority.scala)。
+
+## EmptyBundle / MapBundle
+
+`EmptyBundle` 是零 payload 字段的 Bundle，适用于只传递事件 token 的 Stream/Flow。它不是等待后续指定类型的占位符。
+
+`MapBundle[T]` 是按字符串索引字段的抽象 Record，保留字段顺序并克隆传入的类型模板。键必须非空且唯一；字段模板必须尚未绑定为硬件。定义一个具体子类后，通过 IO/Wire 绑定，并用 `record("key")` 访问。
+
+```scala
+class Counters extends MapBundle[UInt](
+  "cycles" -> Output(UInt(32.W)),
+  "events" -> Output(UInt(16.W))
+)
+```
+
+源码：[Bundles.scala](../chipmunk/src/Bundles.scala)。

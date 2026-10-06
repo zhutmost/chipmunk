@@ -1,15 +1,24 @@
 # 🐿️ CHIPMUNK Docs
 
-Here are the documents for CHIPMUNK.
+These pages describe the current Scala 3 source tree. Build versions, consumer configuration, and commands are in the [project README](../README.md#build-and-installation).
 
-## Chisel Extensions
+## Chisel extensions
 
-- [Extra convenient Methods for Chisel types](./bits-misc.md)
-- [Define Bundle Direction with Master/Slave](./master-slave.md)
-- [Registers triggered on the falling clock edge](./regneg.md)
-- [StreamIO/FlowIO: Decouple Dataflow with Handshake](./stream.md)
+- [Bits/Data helpers, priority selection, and basic records](bits-misc.md)
+- [Master/Slave interface directions](master-slave.md)
+- [Flat RTL interfaces with VerilogIO](verilog-io.md)
+- [Falling-edge registers](regneg.md)
+- [Enum-based state machines](state-machine.md)
+- [Asynchronous-assert/synchronous-deassert reset synchronization](reset-sync.md)
 
-## Common Hardware Components
+## Interfaces and hardware components
 
-- [Acorn Bus](./acorn.md)
-- [SPI Debugger](./spi-debugger.md)
+- [Stream/Flow handshake, pipelines, routing, and arbitration](stream.md)
+- [Acorn protocol, crossbar, SRAM, and width adaptation](acorn.md)
+- [AXI4/AXI4-Lite interfaces and Acorn bridges](amba.md)
+- [Register bank](regbank.md)
+- [SPI debugger](spi-debugger.md)
+
+## Verification
+
+- [ChiselSim helpers and multiple simulated clocks](tester.md)
