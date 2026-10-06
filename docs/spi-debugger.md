@@ -2,13 +2,15 @@
 
 SPI Debugger 允许用户通过 SPI 接口访问片上总线，从而调试 SoC 的各种外设。
 
-它的输入侧端口是一组 SPI 的 Slave 接口，输入侧端口是一组 Acorn Dp Bus 的 Master 接口，后者可以容易地转换成 AXI 等接口连接到SoC 总线上。
+`chipmunk.spi.SpiDebugger` 的 `sSpi` 是 SPI Slave 接口，`mDbg` 是 32 位 Acorn Master 接口，可以经桥接连接到 AXI 总线。SPI 使用 MSB first，`cpol`、`cpha` 参数选择四种标准模式。
+
+Acorn 地址以字节为单位，要求 4 字节对齐；`busAddrWidth` 支持 2～64 位。SPI 命令里的 6 位寄存器索引保持不变，内部 RegBank 字节地址为 `index * 4`。
 
 ## Register Map
 
 SPI Debugger 内部寄存器定义如下：
 
-### `BUS_ADDR_H` (0x00)
+### `BUS_ADDR_H` (0x01)
 
 该寄存器仅当配置选项 `busAddrWidth` > 32 时才会存在，且只有其低 (`busAddrWidth`-32) bit 可被访问。
 
@@ -20,7 +22,7 @@ SPI Debugger 内部寄存器定义如下：
 
 表中的例子是 `busAddrWidth` = 45 时的情况。
 
-### `BUS_ADDR_L` (0x01)
+### `BUS_ADDR_L` (0x00)
 
 当配置选项 `busAddrWidth` > 32 时，寄存器 `BUS_ADDR_L` 与该寄存器的值组合在一起作为总线访问地址；否则，该寄存器的低 `busAddrWidth` bit 作为总线访问地址（`wr/rd.cmd.bits.addr`）。
 
@@ -30,7 +32,7 @@ SPI Debugger 内部寄存器定义如下：
 
 ### `BUS_WR_RESP` (`0x02`)
 
-读取该寄存器，其最低 bit 表示上一次总线写操作是否成功（`wr.resp.bits.status`），0 表示成功，1 表示有错误发生。
+读取该寄存器，其最低 bit 表示上一次总线写操作的错误状态（`wr.rsp.bits.error`），0 表示成功，1 表示有错误发生。
 
 | Field         | Bit width | Bit slice | Access |
 |---------------|-----------|-----------|--------|
@@ -40,7 +42,7 @@ SPI Debugger 内部寄存器定义如下：
 
 ### `BUS_RD_RESP` (`0x03`)
 
-读取该寄存器，其最低 bit 表示上一次总线读操作是否成功（`rd.resp.bits.status`），0 表示成功，1 表示有错误发生。
+读取该寄存器，其最低 bit 表示上一次总线读操作的错误状态（`rd.rsp.bits.error`），0 表示成功，1 表示有错误发生。
 
 | Field         | Bit width | Bit slice | Access |
 |---------------|-----------|-----------|--------|
@@ -50,7 +52,7 @@ SPI Debugger 内部寄存器定义如下：
 
 ### `BUS_WR_DATA` (`0x04`)
 
-该寄存器的值作为总线写操作的数据（`wr.cmd.bits.wdata`）。
+该寄存器的值作为总线写操作的数据（`wr.cmd.bits.data`）。
 
 | Field         | Bit width | Bit slice | Access |
 |---------------|-----------|-----------|--------|
@@ -58,7 +60,7 @@ SPI Debugger 内部寄存器定义如下：
 
 ### `BUS_RD_DATA` (`0x05`)
 
-读取该寄存器，将返回上一次总线读操作的返回数据（`rd.resp.bits.rdata`）。
+读取该寄存器，将返回上一次总线读操作的数据（`rd.rsp.bits.data`）。发生读错误时保存零值。
 
 | Field         | Bit width | Bit slice | Access |
 |---------------|-----------|-----------|--------|
@@ -66,15 +68,33 @@ SPI Debugger 内部寄存器定义如下：
 
 ### `BUS_WR_MASK` (`0x06`)
 
-该寄存器的值作为总线写操作的数据掩码（`wr.cmd.bits.wmask`）。
+该寄存器的值作为总线写操作的数据掩码（`wr.cmd.bits.strobe`），复位值为 `0xf`。零掩码仍发起总线写请求。
 
 | Field         | Bit width | Bit slice | Access |
 |---------------|-----------|-----------|--------|
 | `BUS_WR_MASK` | 4         | 3:0       | R/W    |
 
+### `STATUS` (`0x07`)
+
+| Field | Bit | Access | Meaning |
+|---|---:|---|---|
+| BUSY | 0 | RO | 请求已锁存，命令或响应尚未完成 |
+| RD_DONE | 1 | RO | 最近获准的读操作已经完成，包括本地地址检查失败 |
+| WR_DONE | 2 | RO | 最近获准的写操作已经完成，包括本地地址检查失败 |
+| REJECTED | 3 | RO | 忙时收到新触发，该触发被拒绝 |
+| EARLY_READ | 4 | RO | 快速读的数据阶段开始时，本次结果尚不可用 |
+
+每次新请求获准时清除 DONE、REJECTED 和 EARLY_READ，之后相应标志保持到下一次获准请求或复位；读取 STATUS 不清除标志。忙时被拒绝的请求不替换正在执行的请求，也不修改其返回结果。
+
+读写共用一个未完成事务槽，请求获准时锁存地址、数据和 strobe。之后可以改写暂存寄存器，正在等待握手的 Acorn 命令保持不变。RESP 中的错误位在操作完成时更新，不能单独用它判断是否完成。
+
+任意总线延迟下的读流程：等待 BUSY 清零，写入地址，写 BUS_RD_RESP 触发，检查 REJECTED 并轮询 RD_DONE，最后读取 BUS_RD_RESP 和 BUS_RD_DATA。写操作对应轮询 WR_DONE。
+
+地址不对齐或超出配置宽度时，不向 Acorn 发命令，在本地设置 DONE 和对应 RESP 错误位。窄地址寄存器中未实现的高位读为零，但写入的溢出信息会保留，直到重写对应地址部分；不会静默访问截断后的地址。
+
 ### `TEST` (`0x3F`)
 
-该寄存器用于 SPI 的 Loopback 读写测试，其值对总线不会有任何影响。
+该寄存器用于 SPI 的 Loopback 读写测试，复位值为 `0x3f1b00e5`，其值对总线不会有任何影响。
 
 | Field  | Bit width | Bit slice | Access |
 |--------|-----------|-----------|--------|
@@ -117,7 +137,11 @@ SPI Debugger 支持的 Command 包括：
 
 其传输序列为：`Command` (8b) + `Addr` (32b) + `Dummy` (8b) + `RdData` (32b)
 
-在 `Addr` 阶段，Master 需要将 32 bit 的待读地址发送给 SPI Debugger。SPI Debugger 会将其填入寄存器 `BUS_ADDR_L`，然后立刻发起一次总线读操作。在 `RdData` 阶段，SPI Debugger 将总线返回的读出数据通过 MISO 线发送给 SPI Master。
+在 `Addr` 阶段，Master 发送 32 bit 的地址低位。SPI Debugger 更新 `BUS_ADDR_L`，结合可选的 `BUS_ADDR_H` 发起一次总线读操作。
+
+收齐 8 bit Dummy 时锁存本次结果，整字发送期间不再改变。如果本次结果尚未到达，或者请求因忙被拒绝，则发送 `0xDEAD_BEEF` 并设置 EARLY_READ。迟到的响应仍更新 BUS_RD_DATA 和 RD_DONE，可随后通过寄存器读取；不会返回上一次事务的数据。
+
+`0xDEAD_BEEF` 也可能是合法的总线数据，应通过 STATUS 判断。固定 Dummy 时间不保证任意总线响应延迟，推荐使用上面的轮询读流程。
 
 ### `NOP`
 
@@ -129,4 +153,7 @@ SPI Debugger 支持的 Command 包括：
 
 1. 即使需要连续多次访问，期间也必须先拉高 SSN 结束当前 SPI 传输，再拉低 SSN 开始下一次传输；
 2. 在拉高 SSN 结束当前 SPI 传输前，请务必确定已经完成了整个操作序列所需的数据传输（即等待足够的时间）；
-3. SPI 的传输速率不宜过高，原则上 SCK 的频率应当比系统时钟至少低四倍。
+3. 系统时钟频率至少为 SCK 的 8 倍，假定 SCK 占空比接近 50%，且 IO 建立、保持及传播延迟有足够余量。占空比偏离时需按较短的半周期重新评估。这是主机使用条件，RTL 不强制检查外部时序；SSN 必须在首个采样边沿前被同步逻辑观察到，并保持到最后一个采样边沿之后。
+4. REG_WR 的数据未收齐不写目标寄存器，BUS_WR 的数据未收齐不发总线写请求；快速命令收齐地址字后仍会更新 BUS_ADDR_L。总线读在地址收齐后发起，此后撤销 SSN 不取消请求。完整命令后的多余 SCK 被忽略，下一条命令需重新拉高、拉低 SSN。
+5. 复位会取消本模块的未完成事务，必须同步复位相关 Acorn 端点。片选撤销不会取消事务；模块没有总线超时取消机制。
+6. `hasMisoValid` 为真时，misoValid 直接由原始 SSN 限定，供 IO-cell 控制输出使能；实际三态由 IO-cell 实现。
