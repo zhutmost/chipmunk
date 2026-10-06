@@ -19,7 +19,7 @@ final case class AcornSramConfig(
   require(numWords >= 1, "An Acorn SRAM needs at least one word.")
   require(readLatency >= 1, "SRAM read latency must be positive.")
 
-  val sizeBytes: BigInt = numWords * params.bytesPerWord
+  val sizeBytes: BigInt = numWords * params.strobeWidth
   require(sizeBytes <= (BigInt(1) << params.addrWidth), "SRAM capacity exceeds the Acorn address range.")
 }
 
@@ -43,7 +43,7 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
     val sram   = Flipped(
       new SRAMInterface(
         memSize = config.numWords,
-        tpe = Vec(params.bytesPerWord, UInt(8.W)),
+        tpe = Vec(params.strobeWidth, UInt(8.W)),
         numReadPorts = if (singlePort) 0 else 1,
         numWritePorts = if (singlePort) 0 else 1,
         numReadwritePorts = if (singlePort) 1 else 0,
@@ -90,14 +90,14 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
   writeResponses.io.deq.ready := io.access.wr.rsp.ready
 
   private def addressError(address: UInt): Bool = {
-    val aligned = (address & (params.bytesPerWord - 1).U) === 0.U
+    val aligned = (address & (params.strobeWidth - 1).U) === 0.U
     !aligned || address >= config.sizeBytes.U
   }
 
   private val readError      = addressError(readCommand.bits.addr)
   private val writeError     = addressError(writeCommand.bits.addr)
-  private val readWord       = readCommand.bits.addr >> log2Ceil(params.bytesPerWord)
-  private val writeWord      = writeCommand.bits.addr >> log2Ceil(params.bytesPerWord)
+  private val readWord       = readCommand.bits.addr >> log2Ceil(params.strobeWidth)
+  private val writeWord      = writeCommand.bits.addr >> log2Ceil(params.strobeWidth)
   private val readNeedsSram  = !readError
   private val writeNeedsSram = !writeError && writeCommand.bits.strobe.orR
 
@@ -116,7 +116,7 @@ final class AcornSramAdapter(val config: AcornSramConfig) extends Module {
 
   private val doRead    = readCommand.fire && readNeedsSram
   private val doWrite   = writeCommand.fire && writeNeedsSram
-  private val writeData = writeCommand.bits.data.asTypeOf(Vec(params.bytesPerWord, UInt(8.W)))
+  private val writeData = writeCommand.bits.data.asTypeOf(Vec(params.strobeWidth, UInt(8.W)))
   private val writeMask = VecInit(writeCommand.bits.strobe.asBools)
   private val readData  = Wire(UInt(params.dataWidth.W))
 

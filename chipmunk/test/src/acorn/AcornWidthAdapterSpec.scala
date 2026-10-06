@@ -23,16 +23,16 @@ final class AcornWidthAdapterSpec extends ChipmunkFlatSpec {
     val split    = inputWidth > outputWidth
     val count    = if (split) inputWidth / outputWidth else 1
     val requests = (0 until 24).map { index =>
-      val aligned = input.bytesPerWord == 1 || !Set(3, 7, 19)(index)
+      val aligned = input.strobeWidth == 1 || !Set(3, 7, 19)(index)
       val address =
-        if (index == 23) BigInt(4096 - input.bytesPerWord)
-        else BigInt((index + 8) * input.bytesPerWord + (if (aligned) 0 else 1))
+        if (index == 23) BigInt(4096 - input.strobeWidth)
+        else BigInt((index + 8) * input.strobeWidth + (if (aligned) 0 else 1))
       val strobe = index % 3 match {
         case 0 => BigInt(0)
-        case 1 => BigInt(1) << (index % input.bytesPerWord)
-        case 2 => (BigInt(1) << input.bytesPerWord) - 1
+        case 1 => BigInt(1) << (index % input.strobeWidth)
+        case 2 => (BigInt(1) << input.strobeWidth) - 1
       }
-      Request(address, memoryWord(address + 123, input.bytesPerWord), strobe, aligned)
+      Request(address, memoryWord(address + 123, input.strobeWidth), strobe, aligned)
     }
 
     def converted(request: Request, index: Int): Seq[Segment] = {
@@ -48,12 +48,12 @@ final class AcornWidthAdapterSpec extends ChipmunkFlatSpec {
             }
         (0 until count).take(if (failure < 0) count else failure + 1).map { segment =>
           val address =
-            if (split) request.address + segment * output.bytesPerWord
-            else request.address & ~(BigInt(output.bytesPerWord) - 1)
-          val byteOffset = if (split) segment * output.bytesPerWord else 0
+            if (split) request.address + segment * output.strobeWidth
+            else request.address & ~(BigInt(output.strobeWidth) - 1)
+          val byteOffset = if (split) segment * output.strobeWidth else 0
           val laneOffset = if (inputWidth < outputWidth) (request.address - address).toInt else 0
           val dataMask   = (BigInt(1) << outputWidth) - 1
-          val strobeMask = (BigInt(1) << output.bytesPerWord) - 1
+          val strobeMask = (BigInt(1) << output.strobeWidth) - 1
           Segment(
             address,
             ((request.data >> (8 * byteOffset)) << (8 * laneOffset)) & dataMask,
@@ -149,7 +149,7 @@ final class AcornWidthAdapterSpec extends ChipmunkFlatSpec {
           val error = readParts(readDelivered).isEmpty || readParts(readDelivered).exists(_.error)
           dut.io.sAcorn.rd.rsp.bits.error.expect(error.B)
           dut.io.sAcorn.rd.rsp.bits.data
-            .expect((if (error) BigInt(0) else memoryWord(requests(readDelivered).address, input.bytesPerWord)).U)
+            .expect((if (error) BigInt(0) else memoryWord(requests(readDelivered).address, input.strobeWidth)).U)
           dut.io.sAcorn.rd.cmd.ready.expect(false.B)
         }
         if (writeValid) {
@@ -176,7 +176,7 @@ final class AcornWidthAdapterSpec extends ChipmunkFlatSpec {
         if (endpointRead) {
           val expected = expectedReads(readReceived)
           readResponses.enqueue(
-            Response(cycle + 2 + random.nextInt(4), memoryWord(expected.address, output.bytesPerWord), expected.error)
+            Response(cycle + 2 + random.nextInt(4), memoryWord(expected.address, output.strobeWidth), expected.error)
           )
           readReceived += 1
         }

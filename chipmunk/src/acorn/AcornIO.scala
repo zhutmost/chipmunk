@@ -5,6 +5,18 @@ import chisel3.*
 
 import chipmunk.stream.*
 
+/** A byte-addressed, naturally aligned, fixed-word interface. */
+final case class AcornParams(dataWidth: Int, addrWidth: Int) {
+  require(dataWidth >= 8 && (dataWidth & (dataWidth - 1)) == 0, "Acorn data width must be a power of two >= 8.")
+  require(addrWidth >= 1, "Acorn address width must be positive.")
+  val strobeWidth: Int = dataWidth / 8
+}
+
+/** Separate capacities for accepted commands whose responses have not yet transferred. */
+final case class AcornOutstanding(read: Int = 4, write: Int = 4) {
+  require(read >= 1 && write >= 1, "Acorn outstanding capacities must be positive.")
+}
+
 class AcornWrCmdChannel(val dataWidth: Int, val addrWidth: Int) extends Bundle {
   val addr   = UInt(addrWidth.W)
   val data   = UInt(dataWidth.W)
@@ -38,7 +50,7 @@ class AcornIO(val dataWidth: Int, val addrWidth: Int) extends Bundle with IsMast
   def this(params: AcornParams) = this(params.dataWidth, params.addrWidth)
 
   val params: AcornParams        = AcornParams(dataWidth, addrWidth)
-  val strobeWidth: Int           = params.bytesPerWord
+  val strobeWidth: Int           = params.strobeWidth
   override def isMaster: Boolean = true
 
   val rd = new Bundle {

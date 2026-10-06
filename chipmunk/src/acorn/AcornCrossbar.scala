@@ -4,6 +4,73 @@ package acorn
 import chisel3.*
 import chisel3.util.MixedVec
 
+enum AcornArbitration {
+  case RoundRobin, LowerFirst
+}
+
+/** One slave's global byte-address window [base, base + size).
+  *
+  * The endpoint sees localBase + (address - base). Its address width is inferred from the local window unless
+  * localAddrWidth is specified. All ports have the common bus data width; width conversion is a separate adapter.
+  */
+final case class AcornSlaveConfig(
+  name: String,
+  base: BigInt,
+  size: BigInt,
+  localBase: BigInt = 0,
+  localAddrWidth: Option[Int] = None,
+  readable: Boolean = true,
+  writable: Boolean = true,
+) {
+  require(name.trim.nonEmpty, "An Acorn slave needs a name.")
+  require(base >= 0 && localBase >= 0 && size > 0, "Address bases must be nonnegative and size must be positive.")
+  require(readable || writable, "An Acorn slave must support at least one direction.")
+
+  val end: BigInt        = base + size
+  val portAddrWidth: Int = localAddrWidth.getOrElse(math.max(1, (localBase + size - 1).bitLength))
+  require(portAddrWidth >= 1, "A slave address width must be positive.")
+  require(localBase + size <= (BigInt(1) << portAddrWidth), s"Local address window overflows slave $name.")
+}
+
+/** Static crossbar configuration. Slave sequence order is the order of io.outs.
+  *
+  * connections=None connects every master to every slave. Otherwise there must be one set of slave names per master; an
+  * empty set disables all accesses from that master. Disallowed accesses receive normal ordered error responses.
+  * masterOutstanding limits each master's in-flight commands; slaveOutstanding limits each slave's aggregate load.
+  */
+final case class AcornCrossbarConfig(
+  params: AcornParams,
+  numMasters: Int,
+  slaves: Seq[AcornSlaveConfig],
+  masterOutstanding: AcornOutstanding = AcornOutstanding(),
+  slaveOutstanding: AcornOutstanding = AcornOutstanding(),
+  arbitration: AcornArbitration = AcornArbitration.RoundRobin,
+  connections: Option[Seq[Set[String]]] = None,
+) {
+  require(numMasters >= 1 && slaves.nonEmpty, "An Acorn crossbar needs at least one master and one slave.")
+  private val names = slaves.map(_.name).toSet
+  require(names.size == slaves.size, "Acorn slave names must be unique.")
+  for (slave <- slaves) {
+    require(slave.end <= (BigInt(1) << params.addrWidth), s"Global address window overflows slave ${slave.name}.")
+    require(
+      slave.base        % params.strobeWidth == 0 && slave.size % params.strobeWidth == 0 &&
+        slave.localBase % params.strobeWidth == 0,
+      s"Address window for ${slave.name} must be word aligned.",
+    )
+  }
+  require(
+    slaves.sortBy(_.base).sliding(2).forall(pair => pair.size < 2 || pair.head.end <= pair.last.base),
+    "Acorn slave address windows must not overlap.",
+  )
+  connections.foreach { sets =>
+    require(sets.size == numMasters, "connections must contain one set per master.")
+    require(sets.forall(_.subsetOf(names)), "connections contains an unknown slave name.")
+  }
+
+  def canAccess(master: Int, slave: Int): Boolean =
+    connections.forall(_(master).contains(slaves(slave).name))
+}
+
 /** Per-master Demux followed by per-slave Mux. Different slaves arbitrate independently.
   *
   * Address misses, unaligned addresses, direction permissions, and disconnected routes use one private error endpoint
@@ -29,7 +96,7 @@ class AcornCrossbar(val config: AcornCrossbarConfig) extends Module {
   }
 
   private def decode(addr: UInt, master: Int, write: Boolean): UInt = {
-    val aligned = (addr & (params.bytesPerWord - 1).U) === 0.U
+    val aligned = (addr & (params.strobeWidth - 1).U) === 0.U
     val hits    = config.slaves.zipWithIndex.map { case (slave, index) =>
       val enabled = config.canAccess(master, index) && (if (write) slave.writable else slave.readable)
       val hit     = enabled.B && aligned && addr >= slave.base.U && addr <= (slave.end - 1).U

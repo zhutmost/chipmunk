@@ -64,7 +64,7 @@ final case class RegBankConfig(params: AcornParams, regs: Seq[RegElementConfig])
   require(regs.map(_.addr).distinct.size == regs.size, "Register byte offsets must be unique.")
   for (reg <- regs) {
     require(reg.addr.bitLength <= params.addrWidth, s"Byte offset overflows register ${reg.name}.")
-    require(reg.addr % params.bytesPerWord == 0, s"Register ${reg.name} must be word aligned.")
+    require(reg.addr % params.strobeWidth == 0, s"Register ${reg.name} must be word aligned.")
     require(reg.fields.forall(_.endOffset < params.dataWidth), s"Field exceeds the data width in register ${reg.name}.")
   }
 }
