@@ -23,7 +23,7 @@ import chisel3.util.log2Ceil
 final class AcornWidthAdapter(val inputParams: AcornParams, val outputParams: AcornParams) extends Module {
   require(inputParams.addrWidth == outputParams.addrWidth, "Width adaptation must preserve the byte-address width.")
   require(
-    inputParams.addrWidth >= log2Ceil(math.max(inputParams.bytesPerWord, outputParams.bytesPerWord)),
+    inputParams.addrWidth >= log2Ceil(math.max(inputParams.strobeWidth, outputParams.strobeWidth)),
     "The address width must cover the larger word.",
   )
 
@@ -31,7 +31,7 @@ final class AcornWidthAdapter(val inputParams: AcornParams, val outputParams: Ac
   private val expand    = inputParams.dataWidth < outputParams.dataWidth
   private val segments  = if (split) inputParams.dataWidth / outputParams.dataWidth else 1
   private val indexBits = math.max(1, log2Ceil(segments))
-  private val addrMask  = ((BigInt(1) << outputParams.addrWidth) - outputParams.bytesPerWord).U
+  private val addrMask  = ((BigInt(1) << outputParams.addrWidth) - outputParams.strobeWidth).U
 
   val io = IO(new Bundle {
     val sAcorn = Slave(new AcornIO(inputParams))
@@ -94,7 +94,7 @@ final class AcornWidthAdapter(val inputParams: AcornParams, val outputParams: Ac
   private val writeAddress = Reg(UInt(inputParams.addrWidth.W))
   private val writeIndex   = Reg(UInt(indexBits.W))
   private val writeData    = Reg(UInt(inputParams.dataWidth.W))
-  private val writeStrobe  = Reg(UInt(inputParams.bytesPerWord.W))
+  private val writeStrobe  = Reg(UInt(inputParams.strobeWidth.W))
   private val writeError   = Reg(Bool())
 
   io.sAcorn.wr.cmd.ready := writePhase === Phase.Idle
@@ -113,11 +113,11 @@ final class AcornWidthAdapter(val inputParams: AcornParams, val outputParams: Ac
   if (split) {
     io.mAcorn.wr.cmd.bits.data   := (writeData >> bitOffset(writeIndex))(outputParams.dataWidth - 1, 0)
     io.mAcorn.wr.cmd.bits.strobe :=
-      (writeStrobe >> (writeIndex << log2Ceil(outputParams.bytesPerWord)))(outputParams.bytesPerWord - 1, 0)
+      (writeStrobe >> (writeIndex << log2Ceil(outputParams.strobeWidth)))(outputParams.strobeWidth - 1, 0)
   } else if (expand) {
     io.mAcorn.wr.cmd.bits.data   := (writeData << laneOffset(writeAddress))(outputParams.dataWidth - 1, 0)
     io.mAcorn.wr.cmd.bits.strobe :=
-      (writeStrobe << writeAddress(log2Ceil(outputParams.bytesPerWord) - 1, 0))(outputParams.bytesPerWord - 1, 0)
+      (writeStrobe << writeAddress(log2Ceil(outputParams.strobeWidth) - 1, 0))(outputParams.strobeWidth - 1, 0)
   } else {
     io.mAcorn.wr.cmd.bits.data   := writeData
     io.mAcorn.wr.cmd.bits.strobe := writeStrobe
@@ -143,12 +143,12 @@ final class AcornWidthAdapter(val inputParams: AcornParams, val outputParams: Ac
     writePhase := Phase.Idle
   }
 
-  private def aligned(address: UInt): Bool = (address & (inputParams.bytesPerWord - 1).U) === 0.U
+  private def aligned(address: UInt): Bool = (address & (inputParams.strobeWidth - 1).U) === 0.U
 
   private def endpointAddress(address: UInt, index: UInt): UInt =
-    if (split) address + (index << log2Ceil(outputParams.bytesPerWord)) else address & addrMask
+    if (split) address + (index << log2Ceil(outputParams.strobeWidth)) else address & addrMask
 
   private def bitOffset(index: UInt): UInt = index << log2Ceil(outputParams.dataWidth)
 
-  private def laneOffset(address: UInt): UInt = address(log2Ceil(outputParams.bytesPerWord) - 1, 0) << 3
+  private def laneOffset(address: UInt): UInt = address(log2Ceil(outputParams.strobeWidth) - 1, 0) << 3
 }

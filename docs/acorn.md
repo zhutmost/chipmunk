@@ -35,12 +35,11 @@ Acorn 是用于模块内部地址访问的轻量接口，适合配置寄存器�
 
 | 文件 | 职责 |
 | --- | --- |
-| `AcornIO.scala` | IO 和读写命令、响应 payload |
-| `AcornConfig.scala` | 参数、容量、仲裁方式和静态地址映射配置 |
+| `AcornIO.scala` | IO、读写 payload、接口参数和在途容量 |
 | `AcornRouting.scala` | 内部共用的来源/目标 FIFO 及 Stream 路由逻辑 |
 | `AcornMux.scala` | 多 master 到一个 slave 的命令仲裁和响应分发 |
 | `AcornDemux.scala` | 一个 master 到多个 slave 的命令分发和响应排序 |
-| `AcornCrossbar.scala` | 每 master 一个 Demux、每 slave 一个 Mux，并完成地址转换 |
+| `AcornCrossbar.scala` | 仲裁与地址映射配置，以及 Crossbar 的路由和地址转换 |
 | `AcornErrorPoint.scala` | 可独立实例化的错误响应端点 |
 | `AcornSramAdapter.scala` | 字节掩码同步 SRAM 的 1RW / 1R1W 适配器及配置 |
 
@@ -161,7 +160,7 @@ val config = AcornSramConfig(
 val adapter = Module(new AcornSramAdapter(config))
 val memory = SRAM.masked(
   config.numWords,
-  Vec(config.params.bytesPerWord, UInt(8.W)),
+  Vec(config.params.strobeWidth, UInt(8.W)),
   numReadPorts = 0,
   numWritePorts = 0,
   numReadwritePorts = 1
@@ -172,7 +171,7 @@ adapter.io.sram <> memory
 
 1R1W 使用 `AcornSramPortMode.OneReadOneWrite`，对应 SRAM 的端口数量为 `(1, 1, 0)`。
 上述 `SRAM.masked` 默认读延迟为一拍；替换为其他 SRAM 后端时，`readLatency` 必须与其实际延迟一致。
-SRAM 容量为 `numWords * bytesPerWord`，adapter 地址是从零开始的局部字节偏移。越界或未对齐的命令返回错误，
+SRAM 容量为 `numWords * strobeWidth`，adapter 地址是从零开始的局部字节偏移。越界或未对齐的命令返回错误，
 不访问 SRAM；合法的零 strobe 写不修改 SRAM，仍返回成功响应。
 
 读写命令各经过一个两项队列，关闭 `flow` 和 `pipe`，隔断总线命令到 SRAM 控制以及仲裁到总线 `ready` 的组合路径。

@@ -19,7 +19,7 @@ private object AcornSramAdapterSpecDut {
       val readWord    = Output(UInt(config.params.addrWidth.W))
       val writeWord   = Output(UInt(config.params.addrWidth.W))
       val writeData   = Output(UInt(config.params.dataWidth.W))
-      val writeMask   = Output(UInt(config.params.bytesPerWord.W))
+      val writeMask   = Output(UInt(config.params.strobeWidth.W))
     })
 
     val adapter = Module(new AcornSramAdapter(config))
@@ -28,7 +28,7 @@ private object AcornSramAdapterSpecDut {
     private val single = config.portMode == AcornSramPortMode.SinglePort
     private val memory = SRAM.masked(
       config.numWords,
-      Vec(config.params.bytesPerWord, UInt(8.W)),
+      Vec(config.params.strobeWidth, UInt(8.W)),
       numReadPorts = if (single) 0 else 1,
       numWritePorts = if (single) 0 else 1,
       numReadwritePorts = if (single) 1 else 0,
@@ -92,12 +92,12 @@ class AcornSramAdapterSpec extends ChipmunkFlatSpec {
       simulate(new AcornSramAdapterSpecDut.Harness(config)) { dut =>
         init(dut)
         val port    = dut.io.access
-        val address = config.sizeBytes - config.params.bytesPerWord
+        val address = config.sizeBytes - config.params.strobeWidth
         val data    = (BigInt(1) << width) - 0x53
         port.wr.cmd.valid #= true.B
         port.wr.cmd.bits.addr #= address.U
         port.wr.cmd.bits.data #= data.U
-        port.wr.cmd.bits.strobe #= ((BigInt(1) << config.params.bytesPerWord) - 1).U
+        port.wr.cmd.bits.strobe #= ((BigInt(1) << config.params.strobeWidth) - 1).U
         port.wr.cmd.ready expect true.B
         dut.clock.step()
         port.wr.cmd.valid #= false.B
