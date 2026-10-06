@@ -4,147 +4,146 @@
 
 ![Build & Test](https://github.com/zhutmost/chipmunk/actions/workflows/ci.yml/badge.svg?branch=main)
 
-CHIPMUNK is a Scala package to extend the functionality of [CHISEL](https://chisel-lang.org). It features:
-- Extra convenient methods for CHISEL's built-in types,
-- Several syntactic sugar to sweeten your CHISEL experience,
-- A set of commonly used components and interfaces.
+CHIPMUNK extends [Chisel](https://chisel-lang.org) with convenient hardware APIs, interfaces, and reusable components:
 
-**WARNING**: The code contained in this repo are provided AS IS, and I cannot make any guarantees for availability and correctness. Most of them have only been silicon-verified in academic research (and some even not). You should carefully review every line of code before using it in production.
+- Bits/Data extensions, priority selection, Master/Slave directions, and flat RTL interfaces.
+- Falling-edge registers, enum-based state machines, and asynchronous-assert/synchronous-deassert reset synchronization.
+- Stream/Flow pipelines, queues, routing, and arbitration.
+- Acorn routing, SRAM and width adapters, register banks, AXI4/AXI4-Lite bridges, and an SPI debugger.
+- ChiselSim helpers for port stimulus and multiple simulated clocks.
+
+**WARNING**: This code is provided AS IS, without guarantees of availability or correctness. Review and verify each component in its intended integration before production use. Simulation coverage does not establish silicon verification of the current implementation.
 
 Please open an issue if you have any questions.
 
-## Installation
+## Build and installation
 
-CHIPMUNK is an extension of Chisel, so it needs to be used together with CHISEL.
+This source tree targets Scala 3. The versions currently selected in [build.mill](build.mill) are:
 
-Use the bundled [Mill](https://mill-build.org) bootstrap script to build and publish CHIPMUNK.
+| Component | Version |
+| --- | --- |
+| CHIPMUNK | `0.2.0-SNAPSHOT` |
+| Scala | `3.8.4` |
+| Chisel library and compiler plugin | `7.16.0+3-a2d66312-SNAPSHOT` |
+| ScalaTest | `3.2.20` |
+| Bundled Mill launcher default | `1.1.9` |
+
+Use the same Chisel version for the library and compiler plugin, with the plugin cross-published for the full Scala version. The snapshot repository is configured in `build.mill`; replacing this dependency with another Chisel build requires checking both Scala 3 artifacts and compiler-plugin compatibility.
+
+Run commands from the repository root. Tests use Verilator and require it on `PATH`.
+
+```shell
+./mill __.compile
+./mill chipmunk.test
+./mill mill.scalalib.scalafmt/checkFormatAll
+./mill mylib.run
+```
+
+The last command emits the example design into `generate/hw`. To use CHIPMUNK from another project, first publish this checkout to the local Ivy repository:
 
 ```shell
 ./mill chipmunk.publishLocal
 ```
 
-Then add CHIPMUNK to your build file.
+This publishes `com.zhutmost:chipmunk_3:0.2.0-SNAPSHOT` locally; it does not publish the package to a public repository. An example Mill 1.x consumer `build.mill` is:
+
 ```scala
-// Mill
-def ivyDeps = Agg(..., ivy"com.zhutmost::chipmunk:0.1-SNAPSHOT")
-// SBT
-libraryDependencies ++= Seq(..., "com.zhutmost" %% "chipmunk" % "0.1-SNAPSHOT")
+package build
+
+import mill.scalalib.*
+
+object rtl extends ScalaModule {
+  def scalaVersion = "3.8.4"
+  val chiselVersion = "7.16.0+3-a2d66312-SNAPSHOT"
+
+  override def repositories = super.repositories() ++ Seq(
+    "ivy2Local",
+    "https://central.sonatype.com/repository/maven-snapshots"
+  )
+  override def mvnDeps = super.mvnDeps() ++ Seq(
+    mvn"org.chipsalliance::chisel:$chiselVersion",
+    mvn"com.zhutmost::chipmunk:0.2.0-SNAPSHOT"
+  )
+  override def scalacPluginMvnDeps = super.scalacPluginMvnDeps() ++ Seq(
+    mvn"org.chipsalliance:::chisel-plugin:$chiselVersion"
+  )
+}
 ```
 
-Import it as well as `chisel3` in your Scala RTL code.
+See the [Mill publishing guide](https://mill-build.org/mill/1.0.x/javalib/publishing.html) for local publishing options.
+
+Import the packages needed by your design:
+
 ```scala
-import chisel3._
-import chisel3.util._
-import chipmunk._
+import chisel3.*
+import chisel3.util.*
+import chipmunk.*
+import chipmunk.stream.*
+import chipmunk.acorn.*
+import chipmunk.amba.*
+import chipmunk.regbank.*
+import chipmunk.spi.*
 ```
+
+## Examples
+
+The following hardware snippets belong inside a Chisel Module, with the imports above.
+
+Bits/Data extensions:
+
+```scala
+val word = Wire(UInt(8.W)).dontTouch
+word := word.filledWith(true)
+val lowNibble = word.lsBits(4)
+val selected = PriorityEncoderDefault(word, default = 8.U(4.W))
+```
+
+A Stream pipeline with a transformed payload:
+
+```scala
+class StreamIncrement extends Module {
+  val io = IO(new Bundle {
+    val in = Slave(Stream(UInt(8.W)))
+    val out = Master(Stream(UInt(8.W)))
+  })
+  io.out << io.in.payloadMap(_ + 1.U).pipeAll()
+}
+```
+
+An enum-based state machine:
+
+```scala
+object States extends ChiselEnum {
+  val Idle, Run = Value
+}
+val fsm = StateMachine(States)(States.Idle) {
+  on(States.Idle) {
+    when(start) { goto(States.Run) }
+  }
+  on(States.Run) {
+    when(done) { goto(States.Idle) }
+  }
+}
+val busy = fsm.is(States.Run)
+```
+
+`start` and `done` above are application-provided `Bool` signals. Falling-edge registers use `RegNegNext(next)` or `RegNegEnable(next, enable)`; initialized overloads also require an explicit `isResetAsync` argument. Reset synchronization uses `AsyncResetSync.withSpecificClockDomain(clock, resetAsync, stages = 2)`.
 
 ## Documentation
 
-CHIPMUNK documents are provided in the [docs folder](docs/README.md).
+The [documentation index](docs/README.md) links all reference pages. Documentation is primarily in Chinese, with some English pages.
 
-### Extra convenient Methods for Chisel types
-[View detailed document](docs/bits-misc)
-
-Code example:
-```scala
-val myUInt = Wire(UInt(3.W)).dontTouch // equivalent to `DontTouch(...)`, but more convenient
-when(...) {
-  myUInt.setAllTo(someBits.lsBit) // set all bits to true or false
-} otherwise {
-  myUInt.clearAll()
-}
-val emptyStream = Decoupled(new EmptyBundle) // Bundle without elements
-```
-
-### Define Bundle Direction with Master/Slave
-[View detailed document](docs/master-slave)
-
-Code example:
-```scala
-class AxiIO extends Bundle with IsMasterSlave {
-  val aw = Master(new AxiWriteAddrChannelIO)
-  val ar = Master(new AxiReadAddrChannelIO)
-  val r = Slave(new AxiReadDataChannelIO)
-  val w = Master(new AxiWriteDataChannelIO)
-  val b = Slave(new AxiWriteRespChannelIO)
-  def isMaster = true // indicate this bundle is a Master
-}
-
-class AxiSlave extends Module {
-  val io = IO(new Bundle {
-    val axi = Slave(new AxiIO) // automatically flip the signal directions
-  })
-  // ...
-}
-```
-
-### Registers triggered on the falling clock edge
-[View detailed document](docs/regneg)
-
-Code example:
-```scala
-withClockAndReset(clock, reset) {
-  val regNeg1 = RegNegNext(nextVal)
-  val regNeg2 = RegNegEnable(nextVal, initVal, enable)
-}
-```
-
-### Finite State Machine
-
-[View detailed document]()
-
-Code example:
-
-```scala
-val fsm = new StateMachine {
-  val s1 = new State with EntryPoint
-  val s2 = new State
-  s1
-    .whenIsActive {
-      when(io.a) {
-        goto(s2)
-      }
-    }
-  s2
-    .whenIsActive {
-      when(io.b) {
-        goto(s1)
-      }
-    }
-}
-io.out := fsm.isExiting(fsm.s2)
-```
-
-### Asynchronous Reset Synchronous Dessert
-[View detailed document]()
-
-Code example:
-```scala
-val reset1 = AsyncResetSyncDessert.withImplicitClockDomain()
-val reset2 = AsyncResetSyncDessert.withSpecificClockDomain(clockSys, coreReset, resetChainIn = reset1)
-```
-
-### StreamIO/FlowIO: Decouple Dataflow with Handshake
-[View detailed document](docs/stream)
-
-Code example:
-```scala
-TODO
-```
-
-### Clock Domain Crossing Blocks
-[View detailed document]()
-
-Code example:
-```scala
-TODO
-```
-
-(Not all above document pages are ready yet.)
-
-I am sorry they are written in Chinese (Machine translation driven by AI is good enough now :D).
+| Area | Documentation |
+| --- | --- |
+| Bits/Data, priority selection, and basic records | [Bits/Data helpers](docs/bits-misc.md) |
+| Interface directions and RTL port names | [Master/Slave](docs/master-slave.md), [VerilogIO](docs/verilog-io.md) |
+| Registers, state machines, and reset | [RegNeg](docs/regneg.md), [StateMachine](docs/state-machine.md), [AsyncResetSync](docs/reset-sync.md) |
+| Stream/Flow | [Handshake and components](docs/stream.md) |
+| Acorn | [Protocol, routing, SRAM, and width adaptation](docs/acorn.md) |
+| AMBA bridges | [AXI4/AXI4-Lite and Acorn conversion](docs/amba.md) |
+| Register endpoints and debug | [RegBank](docs/regbank.md), [SPI debugger](docs/spi-debugger.md) |
+| Verification helpers | [ChiselSim and multiple clocks](docs/tester.md) |
 
 ## Acknowledgement
 
-CHIPMUNK is standing on the shoulder of giants.
-Thanks for [CHISEL](https://chisel-lang.org), [SpinalHDL](https://github.com/SpinalHDL/SpinalHDL) and many other open-sourced projects.
+CHIPMUNK is standing on the shoulders of giants. Thanks to [Chisel](https://chisel-lang.org), [SpinalHDL](https://github.com/SpinalHDL/SpinalHDL), and many other open-source projects.

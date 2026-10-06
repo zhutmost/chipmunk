@@ -42,7 +42,7 @@ trait ChiselModule extends ScalaModule {
 }
 
 object chipmunk extends ChiselModule with PublishModule {
-  def publishVersion = "0.1-SNAPSHOT"
+  def publishVersion = "0.2.0-SNAPSHOT"
 
   def pomSettings = PomSettings(
     description = "CHIPMUNK: Enhance CHISEL for Smooth and Comfortable Chip Design",

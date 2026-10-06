@@ -8,11 +8,14 @@ Acorn 是用于模块内部地址访问的轻量接口，适合配置寄存器�
 
 - 地址以字节为单位，每条命令访问一个完整数据字，并要求自然对齐。
   例如，64 位接口的数据字起始地址为 `0x00、0x08、0x10…`。
+
 - `valid` 生效后，发送方必须保持 `valid` 和整个 payload，直到握手完成。
   向下游发送的 valid 不依赖下游 ready 的组合值。
+
 - 每个接受的命令恰好对应一个响应，包括错误访问。端点不能在没有对应命令时发起响应。
 - 每个 master 的读响应按其读命令顺序返回，写响应按其写命令顺序返回。
   读写之间及不同 master 之间没有隐含的全局顺序。
+
 - 写响应表示端点定义的本次写操作已完成。需要“先写后读”时，master 应收到写响应后再发读命令。
 - `strobe(i)=1` 使能 `data(8*i+7, 8*i)`。全零 strobe 不修改数据，仍对应一个写响应。
 - `error=false` 表示成功，`error=true` 表示失败。Crossbar 的错误端点返回零读数据。
@@ -42,8 +45,9 @@ Acorn 是用于模块内部地址访问的轻量接口，适合配置寄存器�
 | `AcornCrossbar.scala` | 仲裁与地址映射配置，以及 Crossbar 的路由和地址转换 |
 | `AcornErrorPoint.scala` | 可独立实例化的错误响应端点 |
 | `AcornSramAdapter.scala` | 字节掩码同步 SRAM 的 1RW / 1R1W 适配器及配置 |
+| `AcornWidthAdapter.scala` | 完整字访问的扩展或拆分，不做读改写 |
 
-配置寄存器端点可使用 [RegBank](regbank.md)。
+`AcornParams.strobeWidth = dataWidth / 8`，表示数据字节数以及写掩码位数；原 `bytesPerWord` 名称已移除。配置寄存器端点可使用 [RegBank](regbank.md)，AXI4/AXI4-Lite 转换见 [AMBA 桥接](amba.md)。
 
 Mux 的来源 FIFO 保存命令由哪个 master 发出；Demux 的目标 FIFO 保存命令发往哪个 slave。
 它们在命令握手时记录路由，在相应响应握手时移除记录。不同 slave 独立仲裁，可以同时接受不同 master 的访问。
@@ -65,7 +69,7 @@ Mux 的来源 FIFO 保存命令由哪个 master 发出；Demux 的目标 FIFO �
 | `connections` | 可选的每 master 可达 slave 名字集合；None 表示全部连接 |
 
 全局窗口、本地基址以及窗口大小都必须按一个数据字对齐。窗口覆盖范围必须同时适配全局和本地地址宽度。
-一个 slave 当前对应一个连续窗口。交错 bank、多个窗口别名以及数据宽度转换留给独立映射或适配组件。
+一个 slave 当前对应一个连续窗口。交错 bank 和多个窗口别名需要独立映射；数据宽度转换可接 AcornWidthAdapter，Crossbar 本身不转换数据宽度。
 
 ```scala
 import chisel3.*
@@ -184,6 +188,37 @@ SRAM 地址、数据和控制由队列中的命令及本地状态产生。无阻
 reset 只用于状态复位，不门控握手或 SRAM 使能。上游在复位期间不得发出命令，并应与 adapter 一致复位。
 复位取消在途事务，但不清除 SRAM 内容，也不撤销已经执行的写。
 
+## AcornWidthAdapter
+
+Acorn 不携带读 size 或读 strobe，每个读命令访问完整数据字。`AcornWidthAdapter(inputParams, outputParams)` 转换两侧的数据宽度；字节地址宽度必须相同，并足以表示较宽的数据字。当前构造函数没有 `allowReadResize` / `allowWriteResize` 参数，位宽不同即执行对应转换。
+
+```scala
+val widthAdapter = Module(new AcornWidthAdapter(
+  inputParams = AcornParams(dataWidth = 32, addrWidth = 16),
+  outputParams = AcornParams(dataWidth = 64, addrWidth = 16)
+))
+// widthAdapter.io.sAcorn <> narrowMaster
+// wideEndpoint <> widthAdapter.io.mAcorn
+```
+
+| 宽度关系 | 读 | 写 |
+| --- | --- | --- |
+| 输入窄、输出宽 | 访问对齐后的完整宽字，抽取原地址对应的 lane | 扩展 data/strobe 到相应 lane，其他字节 strobe 为零 |
+| 输入宽、输出窄 | 按地址递增读取所有子字并合并 | 按地址递增写所有子字，包括 strobe 全零的子写 |
+| 两侧相同 | 保持地址和数据，经过事务缓冲 | 同左 |
+
+输入命令必须按输入字自然对齐；不对齐时在本地返回错误，不访问端点。宽度转换保持低地址对应低字节的 lane 顺序。读写各容纳一个命令，直到上游响应握手才接受下一条；请求与响应均缓冲，读写方向独立。
+
+端点报错时停止剩余子访问，读返回 error 和零数据，写返回 error；已经完成的子写不能回滚。不做读改写、访问合并或旧读数据复用。
+
+接入前必须由系统设计保证：
+
+- 扩展后的整个宽字都落在允许访问的端点区域内。窄到宽读会读取原本未请求的相邻字节，可能触发读清零/FIFO 弹出等副作用。
+- 端点允许非原子的拆分读写。宽到窄读不保证同一时刻的快照；拆分写可能只完成一部分，其他 master 可在子访问之间介入。
+- 写副作用符合字节 strobe 语义，并允许不同访问宽度；不能仅因 strobe 全零就假设端点没有任何事务副作用。
+
+这些语义无法从 Acorn 命令中自动识别或检查。普通 SRAM 适合宽度适配；有读写副作用的 MMIO 应保持相同位宽，或使用明确了解寄存器语义的专用桥。
+
 ## 时序和组合约束
 
 - 每个 master 的读响应按其读命令顺序返回，写响应按写命令顺序返回；读写之间和不同 master 之间没有全局顺序。
@@ -192,10 +227,13 @@ reset 只用于状态复位，不门控握手或 SRAM 使能。上游在复位�
 - Mux 仲裁器只在命令阻塞期间锁定选择；命令接受后可以仲裁其他 master，响应归属由 FIFO 保存。
 - 命令可组合通过路由器；路由记录是寄存的。因此即使端点立即提供响应，首次向上游返回也要等路由记录可见。
   端点不能等待这次响应握手才接受命令，响应必须能保持到 ready。
+
 - 记录 FIFO 使用 `pipe=false, flow=false`，满时不会利用同周期响应释放的空间。深度 1 会限制流水吞吐；
   按端点延迟增大深度可以提高吞吐，首版默认深度 4。
+
 - 在 Crossbar 中，master 接受、slave 接受和两层路由记录是同一次命令握手。不要在 Demux 和 Mux 之间任意加入
   独立接收命令的 Queue；不同目标上的命令发出顺序变化可能形成循环响应等待。
+
 - 响应背压和跨目标按序返回会造成队首阻塞。首版不提供 master 之间的完全阻塞隔离。
 - 所有组件工作于同一时钟域，连接端点应一致复位；复位取消在途事务。跨时钟桥后续单独设计。
 
@@ -207,13 +245,14 @@ Mux 的在途上限是所有 master 的合计，Demux 的上限是一个 master 
 
 测试覆盖来源归属、阻塞时锁定、跨目标按序返回、非法 selector、非零本地基址进位、全地址空间窗口、
 深度 1/4 的多 master 并行读写与随机命令/响应背压，以及配置和访问错误。
-使用项目现有的 `ChipmunkFlatSpec`、`#=` 和 `expect`。
+宽度适配测试还覆盖 lane 顺序、扩展/拆分、局部地址错误、首错停止以及命令/响应背压。使用项目现有的 `ChipmunkFlatSpec`、`#=` 和 `expect`，辅助 API 见 [测试文档](tester.md)。
 
 ```bash
-mill chipmunk.test.testOnly \
+./mill chipmunk.test.testOnly \
   chipmunk.test.acorn.AcornConfigSpec \
   chipmunk.test.acorn.AcornMuxSpec \
   chipmunk.test.acorn.AcornDemuxSpec \
   chipmunk.test.acorn.AcornCrossbarSpec \
-  chipmunk.test.acorn.AcornSramAdapterSpec
+  chipmunk.test.acorn.AcornSramAdapterSpec \
+  chipmunk.test.acorn.AcornWidthAdapterSpec
 ```

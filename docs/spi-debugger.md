@@ -24,11 +24,13 @@ SPI Debugger 内部寄存器定义如下：
 
 ### `BUS_ADDR_L` (0x00)
 
-当配置选项 `busAddrWidth` > 32 时，寄存器 `BUS_ADDR_L` 与该寄存器的值组合在一起作为总线访问地址；否则，该寄存器的低 `busAddrWidth` bit 作为总线访问地址（`wr/rd.cmd.bits.addr`）。
+当配置选项 `busAddrWidth` > 32 时，寄存器 `BUS_ADDR_L` 的值作为低 32 位，与 `BUS_ADDR_H` 的值组合在一起作为总线访问地址；否则，该寄存器的低 `busAddrWidth` bit 作为总线访问地址（`wr/rd.cmd.bits.addr`）。
 
 | Field        | Bit width | Bit slice | Access |
 |--------------|-----------|-----------|--------|
 | `BUS_ADDR_L` | 32        | 31:0      | R/W    |
+
+表中为 `busAddrWidth >= 32` 的情况；更窄的地址只实现低 `busAddrWidth` 位，其余位读为零。
 
 ### `BUS_WR_RESP` (`0x02`)
 
@@ -38,7 +40,7 @@ SPI Debugger 内部寄存器定义如下：
 |---------------|-----------|-----------|--------|
 | `BUS_WR_RESP` | 1         | 0:0       | RO     |
 
-写入该寄存器（无论写 1 或者 0），会发起一次总线写操作。
+写入该寄存器（无论写 1 或者 0），会尝试发起一次总线写操作；BUSY 时拒绝，地址错误在本地完成。
 
 ### `BUS_RD_RESP` (`0x03`)
 
@@ -48,7 +50,7 @@ SPI Debugger 内部寄存器定义如下：
 |---------------|-----------|-----------|--------|
 | `BUS_RD_RESP` | 1         | 0:0       | RO     |
 
-写入该寄存器（无论写 1 或者 0），会发起一次总线读操作。
+写入该寄存器（无论写 1 或者 0），会尝试发起一次总线读操作；BUSY 时拒绝，地址错误在本地完成。
 
 ### `BUS_WR_DATA` (`0x04`)
 
@@ -109,11 +111,12 @@ SPI Debugger 内部寄存器定义如下：
 4. 拉高 SSN 结束 SPI 传输。
 
 SPI Debugger 支持的 Command 包括：
-- `REG_WR` (`0x00xx_xxxx`)：写内部寄存器，低 6 bit 用于区分寄存器；
-- `REG_RD` (`0x01xx_xxxx`)：读内部寄存器，低 6 bit 用于区分寄存器；
+
+- `REG_WR` (`0b00ii_iiii`)：写内部寄存器，低 6 bit 用于区分寄存器；
+- `REG_RD` (`0b01ii_iiii`)：读内部寄存器，低 6 bit 用于区分寄存器；
 - `BUS_WR` (`0b1000_0000`)：写总线；
 - `BUS_RD` (`0b1100_0000`)：读总线；
-- `NOP` (`0b1xxx_xxxx`)：空操作。
+- `NOP`：最高 bit 为 1 且不是 `0x80` / `0xC0` 的其他编码；其中 `i` 表示寄存器索引 bit。
 
 ### `REG_WR`
 
@@ -131,13 +134,13 @@ SPI Debugger 支持的 Command 包括：
 
 其传输序列为：`Command` (8b) + `Addr` (32b) + `WrData` (32b)
 
-在 `Addr` 和 `WrData` 阶段，Master 需要分别将 32 bit 的待写地址和待写数据发送给 SPI Debugger。SPI Debugger 会将它们填入寄存器 `BUS_ADDR_L` 和 `BUS_WR_DATA`，然后立刻发起一次总线写操作。
+在 `Addr` 和 `WrData` 阶段，Master 需要分别将 32 bit 的待写地址和待写数据发送给 SPI Debugger。SPI Debugger 会将它们填入寄存器 `BUS_ADDR_L` 和 `BUS_WR_DATA`，然后尝试发起一次总线写操作；忙时拒绝，地址不合法时在本地报告错误。
 
 ### `BUS_RD`
 
 其传输序列为：`Command` (8b) + `Addr` (32b) + `Dummy` (8b) + `RdData` (32b)
 
-在 `Addr` 阶段，Master 发送 32 bit 的地址低位。SPI Debugger 更新 `BUS_ADDR_L`，结合可选的 `BUS_ADDR_H` 发起一次总线读操作。
+在 `Addr` 阶段，Master 发送 32 bit 的地址低位。SPI Debugger 更新 `BUS_ADDR_L`，结合可选的 `BUS_ADDR_H` 尝试发起一次总线读操作；忙时拒绝，地址不合法时在本地报告错误。
 
 收齐 8 bit Dummy 时锁存本次结果，整字发送期间不再改变。如果本次结果尚未到达，或者请求因忙被拒绝，则发送 `0xDEAD_BEEF` 并设置 EARLY_READ。迟到的响应仍更新 BUS_RD_DATA 和 RD_DONE，可随后通过寄存器读取；不会返回上一次事务的数据。
 
@@ -157,3 +160,14 @@ SPI Debugger 支持的 Command 包括：
 4. REG_WR 的数据未收齐不写目标寄存器，BUS_WR 的数据未收齐不发总线写请求；快速命令收齐地址字后仍会更新 BUS_ADDR_L。总线读在地址收齐后发起，此后撤销 SSN 不取消请求。完整命令后的多余 SCK 被忽略，下一条命令需重新拉高、拉低 SSN。
 5. 复位会取消本模块的未完成事务，必须同步复位相关 Acorn 端点。片选撤销不会取消事务；模块没有总线超时取消机制。
 6. `hasMisoValid` 为真时，misoValid 直接由原始 SSN 限定，供 IO-cell 控制输出使能；实际三态由 IO-cell 实现。
+
+
+## 接口与验证
+
+四线接口 [SpiIO.scala](../chipmunk/src/spi/SpiIO.scala) 的默认方向为 master，调试器通过 `Slave(new SpiIO(...))` 使用；`hasMisoValid` 仅用于 slave 侧 IO-cell 控制。总线接入方式见 [Acorn](acorn.md) 和 [AMBA 桥接](amba.md)。
+
+```shell
+./mill chipmunk.test.testOnly chipmunk.test.spi.SpiDebuggerSpec
+```
+
+测试覆盖四种 SPI 模式、寄存器和快速访问、未完成帧、总线背压/延迟、忙时拒绝、EARLY_READ、地址错误和响应快照。
