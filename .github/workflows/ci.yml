@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Coursier Cache
-        uses: coursier/cache-action@v8
+        uses: coursier/cache-action@v9
 
       - name: Check compilation
         run: ./mill __.compile
@@ -42,7 +42,7 @@ jobs:
           version: 1.0
 
       - name: Setup Coursier Cache
-        uses: coursier/cache-action@v8
+        uses: coursier/cache-action@v9
 
       - name: Run tests
         run: ./mill __.test
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Coursier Cache
-        uses: coursier/cache-action@v8
+        uses: coursier/cache-action@v9
 
       - name: Submit dependency graph
         uses: zhutmost/mill-dependency-graph@v1.1.0
